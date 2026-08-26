@@ -5,7 +5,7 @@ export abstract class GameObject {
   y: number;
   width: number;
   height: number;
-  alive = true;
+  active = true;
 
   constructor(x: number, y: number, width: number, height: number) {
     this.x = x;
