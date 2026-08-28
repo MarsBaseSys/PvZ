@@ -1,8 +1,24 @@
 import { Pea } from '../objects/Pea';
-import { Plant, type PlantContext, type PlantType } from '../objects/Plant';
+import {
+  CherryBomb,
+  Plant,
+  PLANT_COSTS,
+  PLANT_LABELS,
+  renderPlantIcon,
+  type PlantContext,
+  type PlantType,
+} from '../objects/Plant';
 import { RewardCard } from '../objects/RewardCard';
 import { Sun } from '../objects/Sun';
-import { createZombie, Zombie } from '../objects/Zombie';
+import {
+  BasicZombie,
+  BucketheadZombie,
+  ConeheadZombie,
+  createZombie,
+  Zombie,
+  ZOMBIE_LABELS,
+  type ZombieType,
+} from '../objects/Zombie';
 import { LevelManager } from './LevelManager';
 import {
   BOARD_OFFSET_X,
@@ -16,6 +32,7 @@ import { intersects } from '../utils/math';
 import { SoundEngine } from '../utils/SoundEngine';
 import { Narrator } from '../utils/Narrator';
 import { GAME_CONFIG } from '../config/gameConfig';
+import { PLANT_ALMANAC, ZOMBIE_ALMANAC } from '../config/almanac';
 
 interface ZombieAttackState {
   target: Plant;
@@ -29,21 +46,35 @@ export enum GameState {
   VICTORY = 'VICTORY',
   LEVEL_CLEARED = 'LEVEL_CLEARED',
   LEVEL_COMPLETE = 'LEVEL_COMPLETE',
+  ALMANAC = 'ALMANAC',
+}
+
+interface ButtonRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function hitsButton(x: number, y: number, rect: ButtonRect): boolean {
+  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
 }
 
 // Single button rect shared by every settlement overlay (restart / next-level) — only one is ever shown at a time.
-const MODAL_BUTTON = {
+const MODAL_BUTTON: ButtonRect = {
   width: 220,
   height: 56,
   x: CANVAS_WIDTH / 2 - 110,
   y: CANVAS_HEIGHT / 2 + 40,
 };
 
-const PLANT_LABELS: Record<PlantType, string> = {
-  sunflower: '向日葵',
-  peashooter: '豌豆射手',
-  wallnut: '坚果墙',
-};
+const ALMANAC_BUTTON: ButtonRect = { x: CANVAS_WIDTH - 102, y: 34, width: 90, height: 32 };
+const ALMANAC_CLOSE_BUTTON: ButtonRect = { x: CANVAS_WIDTH / 2 - 90, y: CANVAS_HEIGHT - 70, width: 180, height: 48 };
+
+const FINAL_WAVE_BANNER_DURATION = 3.5;
+
+const ALMANAC_PLANT_TYPES: PlantType[] = ['sunflower', 'peashooter', 'wallnut', 'snowpea', 'repeater', 'cherrybomb'];
+const ALMANAC_ZOMBIE_TYPES: ZombieType[] = ['basic', 'conehead', 'buckethead'];
 
 export abstract class GameEngine {
   protected readonly ctx: CanvasRenderingContext2D;
@@ -61,10 +92,20 @@ export abstract class GameEngine {
   private readonly zombieAttacks = new Map<Zombie, ZombieAttackState>();
   private static readonly ZOMBIE_ATTACK_INTERVAL = GAME_CONFIG.combat.zombieAttackInterval;
 
+  private static readonly SNOW_PEA_SLOW_FACTOR = GAME_CONFIG.plants.snowpea.slowFactor;
+  private static readonly SNOW_PEA_SLOW_DURATION = GAME_CONFIG.plants.snowpea.slowDuration;
+
+  private static readonly CHERRY_BOMB_DAMAGE = GAME_CONFIG.plants.cherrybomb.damage;
+  private static readonly CHERRY_BOMB_RADIUS_PX =
+    GAME_CONFIG.plants.cherrybomb.radiusCells * CELL_SIZE + CELL_SIZE / 2;
+
   private naturalSunTimer = 0;
   private static readonly NATURAL_SUN_INTERVAL = GAME_CONFIG.economy.naturalSunInterval;
 
   private rewardClaimed = false;
+
+  private announcedFinalWave = false;
+  private finalWaveBannerTimer = 0;
 
   private lastTime = 0;
   private rafId: number | null = null;
@@ -101,6 +142,20 @@ export abstract class GameEngine {
   protected addPlant(plant: Plant): void {
     this.plants.push(plant);
     this.sound.playPlant();
+
+    if (plant instanceof CherryBomb) {
+      this.detonateCherryBomb(plant);
+    }
+  }
+
+  private detonateCherryBomb(bomb: CherryBomb): void {
+    for (const zombie of this.zombies) {
+      if (!zombie.active) continue;
+      if (Math.abs(zombie.row - bomb.row) > 1) continue;
+      if (Math.abs(zombie.x - bomb.x) > GameEngine.CHERRY_BOMB_RADIUS_PX) continue;
+      zombie.takeDamage(GameEngine.CHERRY_BOMB_DAMAGE);
+    }
+    this.sound.playExplode();
   }
 
   protected addZombie(zombie: Zombie): void {
@@ -136,13 +191,23 @@ export abstract class GameEngine {
 
       const plantType = this.rewardCard.plantType;
       this.narrator.narrateReward(plantType);
-      const nextLevelId = this.levelManager.currentLevel.nextLevelId;
-      // With a next level queued up, freeze on a settlement screen; otherwise
-      // hand the plant straight to the caller and let play continue.
-      this.state = nextLevelId ? GameState.LEVEL_COMPLETE : GameState.PLAYING;
+      this.resolveLevelEnd();
       return plantType;
     }
     return null;
+  }
+
+  /**
+   * Decides what happens once a level's zombies are cleared (and any reward
+   * claimed): move on to the next level's settlement screen, or — if this
+   * was the last level — show the final victory screen. Depends only on
+   * whether a next level exists, not on whether this level handed out a
+   * reward (level 6 has neither).
+   */
+  private resolveLevelEnd(): void {
+    this.state = this.levelManager.currentLevel.nextLevelId
+      ? GameState.LEVEL_COMPLETE
+      : GameState.VICTORY;
   }
 
   protected startLevel(levelId: string): void {
@@ -154,22 +219,30 @@ export abstract class GameEngine {
     this.zombieAttacks.clear();
     this.naturalSunTimer = 0;
     this.rewardClaimed = false;
+    this.announcedFinalWave = false;
+    this.finalWaveBannerTimer = 0;
     this.levelManager.loadLevel(levelId);
     this.state = GameState.PLAYING;
   }
 
   protected handleGlobalClick(x: number, y: number): boolean {
+    if (this.state === GameState.PLAYING && hitsButton(x, y, ALMANAC_BUTTON)) {
+      this.state = GameState.ALMANAC;
+      return true;
+    }
+
+    if (this.state === GameState.ALMANAC) {
+      if (hitsButton(x, y, ALMANAC_CLOSE_BUTTON)) {
+        this.state = GameState.PLAYING;
+      }
+      return true;
+    }
+
     if (this.state === GameState.PLAYING || this.state === GameState.MENU || this.state === GameState.LEVEL_CLEARED) {
       return false;
     }
 
-    if (
-      this.state === GameState.LEVEL_COMPLETE &&
-      x >= MODAL_BUTTON.x &&
-      x <= MODAL_BUTTON.x + MODAL_BUTTON.width &&
-      y >= MODAL_BUTTON.y &&
-      y <= MODAL_BUTTON.y + MODAL_BUTTON.height
-    ) {
+    if (this.state === GameState.LEVEL_COMPLETE && hitsButton(x, y, MODAL_BUTTON)) {
       const nextLevelId = this.levelManager.currentLevel.nextLevelId;
       if (nextLevelId) {
         this.startLevel(nextLevelId);
@@ -177,13 +250,7 @@ export abstract class GameEngine {
       return true;
     }
 
-    if (
-      (this.state === GameState.GAME_OVER || this.state === GameState.VICTORY) &&
-      x >= MODAL_BUTTON.x &&
-      x <= MODAL_BUTTON.x + MODAL_BUTTON.width &&
-      y >= MODAL_BUTTON.y &&
-      y <= MODAL_BUTTON.y + MODAL_BUTTON.height
-    ) {
+    if ((this.state === GameState.GAME_OVER || this.state === GameState.VICTORY) && hitsButton(x, y, MODAL_BUTTON)) {
       this.startLevel(this.levelManager.currentLevel.id);
     }
     return true;
@@ -211,8 +278,27 @@ export abstract class GameEngine {
     this.handleSunFalling(dt);
     this.handleNaturalSunSpawn(dt);
     this.handleWaveSpawns(dt);
+    this.checkFinalWaveAnnouncement(dt);
     this.cleanupInactive();
     this.checkGameOverConditions();
+  }
+
+  // Fires once per level, the instant the final wave's WAVE_ACTIVE phase begins
+  // (waveNumber only reaches totalWaves right as that phase starts).
+  private checkFinalWaveAnnouncement(dt: number): void {
+    if (this.finalWaveBannerTimer > 0) {
+      this.finalWaveBannerTimer -= dt;
+    }
+
+    if (
+      !this.announcedFinalWave &&
+      this.levelManager.totalWaves > 1 &&
+      this.levelManager.waveNumber === this.levelManager.totalWaves
+    ) {
+      this.announcedFinalWave = true;
+      this.finalWaveBannerTimer = FINAL_WAVE_BANNER_DURATION;
+      this.narrator.narrateFinalWave();
+    }
   }
 
   private handleZombieMovementAndAttacks(dt: number): void {
@@ -257,6 +343,9 @@ export abstract class GameEngine {
         if (!zombie.active || zombie.row !== pea.row) continue;
         if (intersects(pea.bounds, zombie.bounds)) {
           zombie.takeDamage(pea.damage);
+          if (pea.slows) {
+            zombie.applySlow(GameEngine.SNOW_PEA_SLOW_DURATION, GameEngine.SNOW_PEA_SLOW_FACTOR);
+          }
           pea.active = false;
           this.sound.playSplat();
           break;
@@ -342,7 +431,7 @@ export abstract class GameEngine {
         this.rewardCard = new RewardCard(rewardPlant, centerX, centerY);
         this.state = GameState.LEVEL_CLEARED;
       } else {
-        this.state = GameState.VICTORY;
+        this.resolveLevelEnd();
       }
     }
   }
@@ -379,6 +468,16 @@ export abstract class GameEngine {
   }
 
   private renderOverlay(): void {
+    if (this.state === GameState.ALMANAC) {
+      this.renderAlmanacOverlay();
+      return;
+    }
+
+    if (this.state === GameState.PLAYING) {
+      this.renderPlayingHud();
+      return;
+    }
+
     if (this.state === GameState.LEVEL_COMPLETE) {
       this.renderLevelCompleteOverlay();
       return;
@@ -397,7 +496,7 @@ export abstract class GameEngine {
     this.ctx.font = 'bold 48px sans-serif';
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
-    const title = this.state === GameState.GAME_OVER ? '游戏结束' : '胜利！';
+    const title = this.state === GameState.GAME_OVER ? '游戏结束' : '恭喜通关！';
     this.ctx.fillText(title, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 20);
 
     this.ctx.fillStyle = '#43a047';
@@ -414,11 +513,154 @@ export abstract class GameEngine {
     this.ctx.restore();
   }
 
-  // Only reachable when the current level has a nextLevelId (see collectRewardCardAt) —
-  // levels without one hand the reward straight back to PLAYING instead of freezing here.
+  private renderPlayingHud(): void {
+    this.ctx.save();
+
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = 'bold 14px sans-serif';
+    this.ctx.textAlign = 'right';
+    this.ctx.textBaseline = 'alphabetic';
+    this.ctx.fillText(`Level ${this.levelManager.currentLevel.id}`, CANVAS_WIDTH - 12, 24);
+    this.ctx.textAlign = 'left';
+
+    this.ctx.fillStyle = '#fff8e1';
+    this.ctx.fillRect(ALMANAC_BUTTON.x, ALMANAC_BUTTON.y, ALMANAC_BUTTON.width, ALMANAC_BUTTON.height);
+    this.ctx.strokeStyle = '#4e342e';
+    this.ctx.lineWidth = 2;
+    this.ctx.strokeRect(ALMANAC_BUTTON.x, ALMANAC_BUTTON.y, ALMANAC_BUTTON.width, ALMANAC_BUTTON.height);
+    this.ctx.fillStyle = '#212121';
+    this.ctx.font = 'bold 15px sans-serif';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText(
+      '📖 图鉴',
+      ALMANAC_BUTTON.x + ALMANAC_BUTTON.width / 2,
+      ALMANAC_BUTTON.y + ALMANAC_BUTTON.height / 2,
+    );
+
+    this.ctx.restore();
+
+    if (this.finalWaveBannerTimer > 0) {
+      this.renderFinalWaveBanner();
+    }
+  }
+
+  private renderFinalWaveBanner(): void {
+    this.ctx.save();
+
+    const bannerY = BOARD_OFFSET_Y - 46;
+    const alpha = Math.min(1, this.finalWaveBannerTimer);
+    this.ctx.globalAlpha = alpha;
+    this.ctx.fillStyle = 'rgba(198, 40, 40, 0.85)';
+    this.ctx.fillRect(CANVAS_WIDTH / 2 - 180, bannerY - 20, 360, 36);
+
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = 'bold 20px sans-serif';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText('⚠ 最后一波僵尸来袭！', CANVAS_WIDTH / 2, bannerY - 2);
+
+    this.ctx.restore();
+  }
+
+  private renderAlmanacOverlay(): void {
+    this.ctx.save();
+
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = 'bold 26px sans-serif';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'alphabetic';
+    this.ctx.fillText('图鉴 Almanac', CANVAS_WIDTH / 2, 44);
+
+    const cols = 3;
+    const marginX = 60;
+    const cellWidth = (CANVAS_WIDTH - marginX * 2) / cols;
+    const rowHeight = 106;
+
+    this.ctx.textAlign = 'left';
+    this.ctx.fillStyle = '#fdd835';
+    this.ctx.font = 'bold 16px sans-serif';
+    this.ctx.fillText('植物', marginX, 78);
+
+    const plantGridTop = 92;
+    ALMANAC_PLANT_TYPES.forEach((type, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      const cellX = marginX + col * cellWidth;
+      const cellY = plantGridTop + row * rowHeight;
+      const iconCx = cellX + 32;
+      const iconCy = cellY + 32;
+
+      renderPlantIcon(this.ctx, type, iconCx, iconCy, 24);
+
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.font = 'bold 14px sans-serif';
+      this.ctx.fillText(PLANT_LABELS[type], cellX + 64, cellY + 18);
+
+      this.ctx.fillStyle = '#fdd835';
+      this.ctx.font = '12px sans-serif';
+      this.ctx.fillText(`费用 ${PLANT_COSTS[type]}`, cellX + 64, cellY + 36);
+
+      this.ctx.fillStyle = '#e0e0e0';
+      this.ctx.font = '12px sans-serif';
+      this.ctx.fillText(PLANT_ALMANAC[type].description, cellX + 64, cellY + 54);
+    });
+
+    const zombieLabelY = plantGridTop + Math.ceil(ALMANAC_PLANT_TYPES.length / cols) * rowHeight + 16;
+    this.ctx.fillStyle = '#ef5350';
+    this.ctx.font = 'bold 16px sans-serif';
+    this.ctx.fillText('僵尸', marginX, zombieLabelY);
+
+    const zombieGridTop = zombieLabelY + 14;
+    ALMANAC_ZOMBIE_TYPES.forEach((type, index) => {
+      const cellX = marginX + index * cellWidth;
+      const cellCenterX = cellX + cellWidth / 2;
+
+      const zombie =
+        type === 'basic'
+          ? new BasicZombie(0, 0, 0)
+          : type === 'conehead'
+            ? new ConeheadZombie(0, 0, 0)
+            : new BucketheadZombie(0, 0, 0);
+      zombie.x = cellCenterX - zombie.width / 2;
+      zombie.y = zombieGridTop;
+      zombie.render(this.ctx);
+
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.font = 'bold 14px sans-serif';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(ZOMBIE_LABELS[type], cellCenterX, zombieGridTop + 90);
+
+      this.ctx.fillStyle = '#e0e0e0';
+      this.ctx.font = '12px sans-serif';
+      this.ctx.fillText(ZOMBIE_ALMANAC[type].description, cellCenterX, zombieGridTop + 108);
+      this.ctx.textAlign = 'left';
+    });
+
+    this.ctx.fillStyle = '#607d8b';
+    this.ctx.fillRect(ALMANAC_CLOSE_BUTTON.x, ALMANAC_CLOSE_BUTTON.y, ALMANAC_CLOSE_BUTTON.width, ALMANAC_CLOSE_BUTTON.height);
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = 'bold 18px sans-serif';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText(
+      '关闭 (Close)',
+      ALMANAC_CLOSE_BUTTON.x + ALMANAC_CLOSE_BUTTON.width / 2,
+      ALMANAC_CLOSE_BUTTON.y + ALMANAC_CLOSE_BUTTON.height / 2,
+    );
+
+    this.ctx.restore();
+  }
+
+  // Reached via resolveLevelEnd() whenever the just-cleared level has a nextLevelId.
   private renderLevelCompleteOverlay(): void {
     const level = this.levelManager.currentLevel;
-    const rewardLabel = level.rewardPlant ? PLANT_LABELS[level.rewardPlant] : '';
+    const message = level.rewardPlant
+      ? `你获得了${PLANT_LABELS[level.rewardPlant]}！准备进入 Level ${level.nextLevelId}`
+      : `你胜利了！准备进入 Level ${level.nextLevelId}`;
 
     this.ctx.save();
 
@@ -429,11 +671,7 @@ export abstract class GameEngine {
     this.ctx.font = 'bold 34px sans-serif';
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
-    this.ctx.fillText(
-      `你获得了${rewardLabel}！解锁 Level ${level.nextLevelId}`,
-      CANVAS_WIDTH / 2,
-      CANVAS_HEIGHT / 2 - 20,
-    );
+    this.ctx.fillText(message, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 20);
 
     this.ctx.fillStyle = '#fdd835';
     this.ctx.fillRect(

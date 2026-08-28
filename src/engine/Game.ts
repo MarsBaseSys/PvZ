@@ -2,8 +2,27 @@ import { GameEngine } from './GameEngine';
 import { Grid, type GridCell } from './Grid';
 import { InputManager } from './InputManager';
 import { EventBus } from '../utils/EventBus';
-import { Peashooter, PLANT_COSTS, Sunflower, WallNut, type PlantType } from '../objects/Plant';
+import {
+  CherryBomb,
+  PLANT_COSTS,
+  Peashooter,
+  Plant,
+  Repeater,
+  SnowPea,
+  Sunflower,
+  WallNut,
+  type PlantType,
+} from '../objects/Plant';
 import { CELL_SIZE } from '../utils/constants';
+
+const PLANT_FACTORIES: Record<PlantType, (x: number, y: number, row: number) => Plant> = {
+  sunflower: (x, y, row) => new Sunflower(x, y, row),
+  peashooter: (x, y, row) => new Peashooter(x, y, row),
+  wallnut: (x, y, row) => new WallNut(x, y, row),
+  snowpea: (x, y, row) => new SnowPea(x, y, row),
+  repeater: (x, y, row) => new Repeater(x, y, row),
+  cherrybomb: (x, y, row) => new CherryBomb(x, y, row),
+};
 
 export class Game extends GameEngine {
   private readonly grid = new Grid();
@@ -81,14 +100,7 @@ export class Game extends GameEngine {
       return;
     }
 
-    let plant;
-    if (type === 'sunflower') {
-      plant = new Sunflower(x + 5, y + 5, cell.row);
-    } else if (type === 'peashooter') {
-      plant = new Peashooter(x + 5, y + 5, cell.row);
-    } else {
-      plant = new WallNut(x + 5, y + 5, cell.row);
-    }
+    const plant = PLANT_FACTORIES[type](x + 5, y + 5, cell.row);
 
     this.sunCount -= cost;
     this.addPlant(plant);
@@ -124,16 +136,5 @@ export class Game extends GameEngine {
     }
 
     this.grid.renderHUD(this.ctx, this.sunCount, this.selectedPlant);
-
-    this.ctx.save();
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.font = 'bold 14px sans-serif';
-    this.ctx.textAlign = 'right';
-    this.ctx.fillText(
-      `第 ${this.levelManager.waveNumber}/${this.levelManager.totalWaves} 波`,
-      this.canvas.width - 12,
-      24,
-    );
-    this.ctx.restore();
   }
 }

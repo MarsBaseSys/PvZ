@@ -1,14 +1,8 @@
 import { GameObject } from './GameObject';
-import type { PlantType } from './Plant';
+import { PLANT_LABELS, renderPlantIcon, type PlantType } from './Plant';
 
 const CARD_WIDTH = 90;
 const CARD_HEIGHT = 100;
-
-const PLANT_LABELS: Record<PlantType, string> = {
-  sunflower: '向日葵',
-  peashooter: '豌豆射手',
-  wallnut: '坚果墙',
-};
 
 export class RewardCard extends GameObject {
   private pulseTimer = 0;
@@ -61,7 +55,7 @@ export class RewardCard extends GameObject {
     const iconCx = cx;
     const iconCy = this.y + this.height * 0.4;
     const r = this.width * 0.3;
-    this.renderIcon(ctx, iconCx, iconCy, r);
+    renderPlantIcon(ctx, this.plantType, iconCx, iconCy, r);
 
     ctx.fillStyle = '#212121';
     ctx.font = 'bold 15px sans-serif';
@@ -70,57 +64,5 @@ export class RewardCard extends GameObject {
     ctx.textAlign = 'left';
 
     ctx.restore();
-  }
-
-  private renderIcon(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
-    if (this.plantType === 'sunflower') {
-      const petalCount = 8;
-      for (let i = 0; i < petalCount; i++) {
-        const angle = (i / petalCount) * Math.PI * 2;
-        const px = cx + Math.cos(angle) * r * 0.6;
-        const py = cy + Math.sin(angle) * r * 0.6;
-        ctx.fillStyle = '#fbc02d';
-        ctx.beginPath();
-        ctx.ellipse(px, py, r * 0.35, r * 0.22, angle, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.fillStyle = '#6d4c21';
-      ctx.beginPath();
-      ctx.arc(cx, cy, r * 0.45, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#3e2b12';
-      ctx.beginPath();
-      ctx.ellipse(cx - r * 0.15, cy - r * 0.08, r * 0.06, r * 0.09, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(cx + r * 0.15, cy - r * 0.08, r * 0.06, r * 0.09, 0, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (this.plantType === 'peashooter') {
-      ctx.fillStyle = '#2e7d32';
-      ctx.beginPath();
-      ctx.arc(cx, cy + r * 0.15, r * 0.72, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#43a047';
-      ctx.beginPath();
-      ctx.arc(cx - r * 0.1, cy - r * 0.2, r * 0.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#1b5e20';
-      ctx.fillRect(cx + r * 0.2, cy - r * 0.35 - 4, r * 0.8, 8);
-    } else {
-      ctx.fillStyle = '#a9784a';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, r * 0.95, r * 0.85, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#5d4321';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.fillStyle = '#3e2b12';
-      ctx.beginPath();
-      ctx.ellipse(cx - r * 0.28, cy - r * 0.15, r * 0.07, r * 0.09, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(cx + r * 0.1, cy - r * 0.15, r * 0.07, r * 0.09, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
   }
 }

@@ -65,23 +65,30 @@ export class LevelManager {
     }
 
     // WAVE_ACTIVE
-    this.phaseTimer += dt;
     const wave = this.level.waves[this.waveIndex];
+
+    // All of this wave's zombies were already dispatched on a previous call —
+    // only now is aliveZombieCount guaranteed to reflect them, so the
+    // completion check must live here rather than after this call's spawns.
+    if (this.spawnPointer >= wave.zombies.length) {
+      if (aliveZombieCount === 0) {
+        if (this.waveIndex >= this.level.waves.length - 1) {
+          this.phase = 'COMPLETE';
+        } else {
+          this.phase = 'INTERWAVE';
+          this.phaseTimer = 0;
+        }
+      }
+      return [];
+    }
+
+    this.phaseTimer += dt;
     const spawns: ZombieSpawnRequest[] = [];
 
     while (this.spawnPointer < wave.zombies.length && wave.zombies[this.spawnPointer].delay <= this.phaseTimer) {
       const { type } = wave.zombies[this.spawnPointer];
       spawns.push({ type, row: this.pickRow() });
       this.spawnPointer++;
-    }
-
-    if (this.spawnPointer >= wave.zombies.length && aliveZombieCount === 0) {
-      if (this.waveIndex >= this.level.waves.length - 1) {
-        this.phase = 'COMPLETE';
-      } else {
-        this.phase = 'INTERWAVE';
-        this.phaseTimer = 0;
-      }
     }
 
     return spawns;

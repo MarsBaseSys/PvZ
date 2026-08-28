@@ -1,4 +1,4 @@
-import { PLANT_COOLDOWNS, PLANT_COSTS, type PlantType } from '../objects/Plant';
+import { PLANT_COOLDOWNS, PLANT_COSTS, renderPlantIcon, type PlantType } from '../objects/Plant';
 import type { LevelConfig } from '../config/levelConfig';
 import {
   BOARD_OFFSET_X,
@@ -168,29 +168,7 @@ export class Grid {
 
       const iconCx = card.x + card.width / 2;
       const iconCy = card.y + card.height * 0.4;
-      if (card.type === 'sunflower') {
-        ctx.fillStyle = '#fdd835';
-        ctx.beginPath();
-        ctx.arc(iconCx, iconCy, 18, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#6d4c21';
-        ctx.beginPath();
-        ctx.arc(iconCx, iconCy, 8, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (card.type === 'peashooter') {
-        ctx.fillStyle = '#43a047';
-        ctx.beginPath();
-        ctx.arc(iconCx, iconCy, 18, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.fillStyle = '#a9784a';
-        ctx.beginPath();
-        ctx.ellipse(iconCx, iconCy, 18, 16, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#5d4321';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
+      renderPlantIcon(ctx, card.type, iconCx, iconCy, 20);
 
       ctx.fillStyle = '#212121';
       ctx.font = '14px sans-serif';
