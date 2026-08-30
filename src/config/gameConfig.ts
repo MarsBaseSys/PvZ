@@ -50,6 +50,26 @@ export const GAME_CONFIG = {
       radiusCells: 1,
       fuseDuration: 0.4,
     },
+    torchwood: {
+      cost: 25,
+      cooldown: 7.5,
+      hp: 500,
+    },
+    hypnoshroom: {
+      cost: 75,
+      cooldown: 7.5,
+      hp: 400,
+    },
+    iceshroom: {
+      cost: 100,
+      cooldown: 7.5,
+      hp: 3000,
+      damage: 35,
+      attackInterval: 1.4,
+      peaSpeed: 300,
+      slowFactor: 0.5,
+      slowDuration: 1.5,
+    },
   },
   zombies: {
     basic: {

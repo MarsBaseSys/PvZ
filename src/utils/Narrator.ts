@@ -16,6 +16,9 @@ const PLANTED_PHRASES: Record<PlantType, string[]> = {
   snowpea: ['Snow Pea!', 'You planted a snow pea!', 'Snow pea, ready to freeze!'],
   repeater: ['Repeater!', 'You planted a repeater!', 'Double the peas!'],
   cherrybomb: ['Cherry Bomb!', 'You planted a cherry bomb!', 'Boom, incoming!'],
+  torchwood: ['Torchwood!', 'You planted a torchwood!', 'Fired up and ready!'],
+  hypnoshroom: ['Hypno-shroom!', 'You planted a hypno-shroom!', 'Time to hypnotize!'],
+  iceshroom: ['Ice-shroom!', 'You planted an ice-shroom!', 'Chilly and ready!'],
 };
 
 const ZOMBIE_PHRASES: Record<ZombieType, string[]> = {
@@ -31,6 +34,9 @@ const REWARD_PHRASES: Record<PlantType, string[]> = {
   snowpea: ['Great job! You unlocked the snow pea!', 'Awesome! Say hello to your new snow pea!'],
   repeater: ['Great job! You unlocked the repeater!', 'Awesome! Say hello to your new repeater!'],
   cherrybomb: ['Great job! You unlocked the cherry bomb!', 'Awesome! Say hello to your new cherry bomb!'],
+  torchwood: ['Great job! You unlocked the torchwood!', 'Awesome! Say hello to your new torchwood!'],
+  hypnoshroom: ['Great job! You unlocked the hypno-shroom!', 'Awesome! Say hello to your new hypno-shroom!'],
+  iceshroom: ['Great job! You unlocked the ice-shroom!', 'Awesome! Say hello to your new ice-shroom!'],
 };
 
 const WELCOME_PHRASES = ["Let's plant and learn English!", 'Ready, set, grow!'];

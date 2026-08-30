@@ -1,10 +1,12 @@
 import { Pea } from '../objects/Pea';
 import {
   CherryBomb,
+  HypnoShroom,
   Plant,
   PLANT_COSTS,
   PLANT_LABELS,
   renderPlantIcon,
+  TorchWood,
   type PlantContext,
   type PlantType,
 } from '../objects/Plant';
@@ -20,6 +22,7 @@ import {
   type ZombieType,
 } from '../objects/Zombie';
 import { LevelManager } from './LevelManager';
+import { LEVEL_ORDER, LEVELS } from '../config/levelConfig';
 import {
   BOARD_OFFSET_X,
   BOARD_OFFSET_Y,
@@ -71,9 +74,43 @@ const MODAL_BUTTON: ButtonRect = {
 const ALMANAC_BUTTON: ButtonRect = { x: CANVAS_WIDTH - 102, y: 34, width: 90, height: 32 };
 const ALMANAC_CLOSE_BUTTON: ButtonRect = { x: CANVAS_WIDTH / 2 - 90, y: CANVAS_HEIGHT - 70, width: 180, height: 48 };
 
+// 3x3 level-select grid; render and click hit-testing both read from this so they can't drift apart.
+const LEVEL_SELECT_COLS = 3;
+const LEVEL_SELECT_BUTTON_WIDTH = 220;
+const LEVEL_SELECT_BUTTON_HEIGHT = 120;
+const LEVEL_SELECT_GAP_X = 30;
+const LEVEL_SELECT_GAP_Y = 24;
+const LEVEL_SELECT_GRID_TOP = 130;
+const LEVEL_SELECT_MARGIN_X =
+  (CANVAS_WIDTH - (LEVEL_SELECT_COLS * LEVEL_SELECT_BUTTON_WIDTH + (LEVEL_SELECT_COLS - 1) * LEVEL_SELECT_GAP_X)) / 2;
+
+const LEVEL_SELECT_BUTTONS: Array<{ id: string; rect: ButtonRect }> = LEVEL_ORDER.map((id, index) => {
+  const col = index % LEVEL_SELECT_COLS;
+  const row = Math.floor(index / LEVEL_SELECT_COLS);
+  return {
+    id,
+    rect: {
+      x: LEVEL_SELECT_MARGIN_X + col * (LEVEL_SELECT_BUTTON_WIDTH + LEVEL_SELECT_GAP_X),
+      y: LEVEL_SELECT_GRID_TOP + row * (LEVEL_SELECT_BUTTON_HEIGHT + LEVEL_SELECT_GAP_Y),
+      width: LEVEL_SELECT_BUTTON_WIDTH,
+      height: LEVEL_SELECT_BUTTON_HEIGHT,
+    },
+  };
+});
+
 const FINAL_WAVE_BANNER_DURATION = 3.5;
 
-const ALMANAC_PLANT_TYPES: PlantType[] = ['sunflower', 'peashooter', 'wallnut', 'snowpea', 'repeater', 'cherrybomb'];
+const ALMANAC_PLANT_TYPES: PlantType[] = [
+  'sunflower',
+  'peashooter',
+  'wallnut',
+  'snowpea',
+  'repeater',
+  'cherrybomb',
+  'torchwood',
+  'hypnoshroom',
+  'iceshroom',
+];
 const ALMANAC_ZOMBIE_TYPES: ZombieType[] = ['basic', 'conehead', 'buckethead'];
 
 export abstract class GameEngine {
@@ -90,6 +127,7 @@ export abstract class GameEngine {
   protected readonly levelManager = new LevelManager();
 
   private readonly zombieAttacks = new Map<Zombie, ZombieAttackState>();
+  private readonly zombieDuels = new Map<Zombie, { target: Zombie; timer: number }>();
   private static readonly ZOMBIE_ATTACK_INTERVAL = GAME_CONFIG.combat.zombieAttackInterval;
 
   private static readonly SNOW_PEA_SLOW_FACTOR = GAME_CONFIG.plants.snowpea.slowFactor;
@@ -126,7 +164,6 @@ export abstract class GameEngine {
 
   start(): void {
     this.lastTime = performance.now();
-    this.startLevel('1-1');
     this.sound.playBGM();
     this.narrator.narrateWelcome();
     this.rafId = requestAnimationFrame(this.tick);
@@ -150,7 +187,7 @@ export abstract class GameEngine {
 
   private detonateCherryBomb(bomb: CherryBomb): void {
     for (const zombie of this.zombies) {
-      if (!zombie.active) continue;
+      if (!zombie.active || zombie.hypnotized) continue;
       if (Math.abs(zombie.row - bomb.row) > 1) continue;
       if (Math.abs(zombie.x - bomb.x) > GameEngine.CHERRY_BOMB_RADIUS_PX) continue;
       zombie.takeDamage(GameEngine.CHERRY_BOMB_DAMAGE);
@@ -217,6 +254,7 @@ export abstract class GameEngine {
     this.suns = [];
     this.rewardCard = null;
     this.zombieAttacks.clear();
+    this.zombieDuels.clear();
     this.naturalSunTimer = 0;
     this.rewardClaimed = false;
     this.announcedFinalWave = false;
@@ -238,7 +276,15 @@ export abstract class GameEngine {
       return true;
     }
 
-    if (this.state === GameState.PLAYING || this.state === GameState.MENU || this.state === GameState.LEVEL_CLEARED) {
+    if (this.state === GameState.MENU) {
+      const picked = LEVEL_SELECT_BUTTONS.find((btn) => hitsButton(x, y, btn.rect));
+      if (picked) {
+        this.startLevel(picked.id);
+      }
+      return true;
+    }
+
+    if (this.state === GameState.PLAYING || this.state === GameState.LEVEL_CLEARED) {
       return false;
     }
 
@@ -279,8 +325,18 @@ export abstract class GameEngine {
     this.handleNaturalSunSpawn(dt);
     this.handleWaveSpawns(dt);
     this.checkFinalWaveAnnouncement(dt);
+    this.removeEscapedHypnotizedZombies();
     this.cleanupInactive();
     this.checkGameOverConditions();
+  }
+
+  // Hypnotized zombies walk back toward the spawn edge and simply leave the field once they reach it.
+  private removeEscapedHypnotizedZombies(): void {
+    for (const zombie of this.zombies) {
+      if (zombie.hypnotized && zombie.x > CANVAS_WIDTH) {
+        zombie.active = false;
+      }
+    }
   }
 
   // Fires once per level, the instant the final wave's WAVE_ACTIVE phase begins
@@ -305,6 +361,21 @@ export abstract class GameEngine {
     for (const zombie of this.zombies) {
       if (!zombie.active) continue;
 
+      // A hypnotized zombie walking back through the crowd fights the first regular
+      // zombie it meets in its row (and vice versa) instead of attacking plants.
+      const opponent = this.findZombieOpponent(zombie);
+      if (opponent) {
+        this.zombieAttacks.delete(zombie);
+        this.resolveZombieDuel(zombie, opponent, dt);
+        continue;
+      }
+      this.zombieDuels.delete(zombie);
+
+      if (zombie.hypnotized) {
+        zombie.update(dt);
+        continue;
+      }
+
       const attackState = this.zombieAttacks.get(zombie);
       if (attackState) {
         if (!attackState.target.active || !intersects(zombie.bounds, attackState.target.bounds)) {
@@ -314,6 +385,11 @@ export abstract class GameEngine {
           if (attackState.timer <= 0) {
             attackState.target.takeDamage(zombie.attackPower * GameEngine.ZOMBIE_ATTACK_INTERVAL);
             attackState.timer = GameEngine.ZOMBIE_ATTACK_INTERVAL;
+            // A HypnoShroom that dies to this bite hypnotizes its attacker instead of just vanishing.
+            if (!attackState.target.active && attackState.target instanceof HypnoShroom) {
+              zombie.hypnotize();
+              this.zombieAttacks.delete(zombie);
+            }
           }
           continue;
         }
@@ -334,16 +410,56 @@ export abstract class GameEngine {
     }
   }
 
+  private findZombieOpponent(zombie: Zombie): Zombie | null {
+    return (
+      this.zombies.find(
+        (other) =>
+          other !== zombie &&
+          other.active &&
+          other.row === zombie.row &&
+          other.hypnotized !== zombie.hypnotized &&
+          intersects(zombie.bounds, other.bounds),
+      ) ?? null
+    );
+  }
+
+  private resolveZombieDuel(zombie: Zombie, opponent: Zombie, dt: number): void {
+    const state = this.zombieDuels.get(zombie);
+    if (state && state.target === opponent) {
+      state.timer -= dt;
+      if (state.timer <= 0) {
+        opponent.takeDamage(zombie.attackPower * GameEngine.ZOMBIE_ATTACK_INTERVAL);
+        state.timer = GameEngine.ZOMBIE_ATTACK_INTERVAL;
+      }
+      return;
+    }
+    this.zombieDuels.set(zombie, { target: opponent, timer: GameEngine.ZOMBIE_ATTACK_INTERVAL });
+  }
+
   private handlePeaMovementAndCollisions(dt: number): void {
     for (const pea of this.peas) {
       if (!pea.active) continue;
       pea.update(dt);
 
+      if (!pea.ignited) {
+        const torch = this.plants.find(
+          (plant) =>
+            plant.active &&
+            plant instanceof TorchWood &&
+            plant.row === pea.row &&
+            intersects(pea.bounds, plant.bounds),
+        );
+        if (torch) {
+          pea.ignited = true;
+          pea.damage *= 2;
+        }
+      }
+
       for (const zombie of this.zombies) {
-        if (!zombie.active || zombie.row !== pea.row) continue;
+        if (!zombie.active || zombie.hypnotized || zombie.row !== pea.row) continue;
         if (intersects(pea.bounds, zombie.bounds)) {
           zombie.takeDamage(pea.damage);
-          if (pea.slows) {
+          if (pea.slows && !pea.ignited) {
             zombie.applySlow(GameEngine.SNOW_PEA_SLOW_DURATION, GameEngine.SNOW_PEA_SLOW_FACTOR);
           }
           pea.active = false;
@@ -357,7 +473,9 @@ export abstract class GameEngine {
   private handlePlantProduction(dt: number): void {
     const context: PlantContext = {
       zombieAheadInRow: (row, x) =>
-        this.zombies.some((zombie) => zombie.active && zombie.row === row && zombie.x >= x),
+        this.zombies.some(
+          (zombie) => zombie.active && !zombie.hypnotized && zombie.row === row && zombie.x >= x,
+        ),
     };
 
     for (const plant of this.plants) {
@@ -447,6 +565,11 @@ export abstract class GameEngine {
         this.zombieAttacks.delete(zombie);
       }
     }
+    for (const [zombie, state] of this.zombieDuels) {
+      if (!zombie.active || !state.target.active) {
+        this.zombieDuels.delete(zombie);
+      }
+    }
   }
 
   private renderEntities(): void {
@@ -470,6 +593,11 @@ export abstract class GameEngine {
   private renderOverlay(): void {
     if (this.state === GameState.ALMANAC) {
       this.renderAlmanacOverlay();
+      return;
+    }
+
+    if (this.state === GameState.MENU) {
+      this.renderLevelSelectOverlay();
       return;
     }
 
@@ -563,6 +691,45 @@ export abstract class GameEngine {
     this.ctx.restore();
   }
 
+  private renderLevelSelectOverlay(): void {
+    this.ctx.save();
+
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = 'bold 32px sans-serif';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'alphabetic';
+    this.ctx.fillText('选择关卡 Select Level', CANVAS_WIDTH / 2, 70);
+
+    this.ctx.font = '14px sans-serif';
+    this.ctx.fillStyle = '#cfd8dc';
+    this.ctx.fillText('点击任意关卡直接开始', CANVAS_WIDTH / 2, 96);
+
+    for (const { id, rect } of LEVEL_SELECT_BUTTONS) {
+      const level = LEVELS[id];
+      const subtitle = level.rewardPlant ? `解锁：${PLANT_LABELS[level.rewardPlant]}` : '进阶挑战关';
+
+      this.ctx.fillStyle = '#43a047';
+      this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+      this.ctx.strokeStyle = '#1b5e20';
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.font = 'bold 24px sans-serif';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(`Level ${id}`, rect.x + rect.width / 2, rect.y + rect.height / 2 - 14);
+
+      this.ctx.font = '14px sans-serif';
+      this.ctx.fillText(subtitle, rect.x + rect.width / 2, rect.y + rect.height / 2 + 18);
+    }
+
+    this.ctx.restore();
+  }
+
   private renderAlmanacOverlay(): void {
     this.ctx.save();
 
@@ -578,7 +745,7 @@ export abstract class GameEngine {
     const cols = 3;
     const marginX = 60;
     const cellWidth = (CANVAS_WIDTH - marginX * 2) / cols;
-    const rowHeight = 106;
+    const rowHeight = 72;
 
     this.ctx.textAlign = 'left';
     this.ctx.fillStyle = '#fdd835';

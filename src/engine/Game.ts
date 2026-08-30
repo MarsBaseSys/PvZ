@@ -4,12 +4,15 @@ import { InputManager } from './InputManager';
 import { EventBus } from '../utils/EventBus';
 import {
   CherryBomb,
+  HypnoShroom,
+  IceMushroom,
   PLANT_COSTS,
   Peashooter,
   Plant,
   Repeater,
   SnowPea,
   Sunflower,
+  TorchWood,
   WallNut,
   type PlantType,
 } from '../objects/Plant';
@@ -22,6 +25,9 @@ const PLANT_FACTORIES: Record<PlantType, (x: number, y: number, row: number) => 
   snowpea: (x, y, row) => new SnowPea(x, y, row),
   repeater: (x, y, row) => new Repeater(x, y, row),
   cherrybomb: (x, y, row) => new CherryBomb(x, y, row),
+  torchwood: (x, y, row) => new TorchWood(x, y, row),
+  hypnoshroom: (x, y, row) => new HypnoShroom(x, y, row),
+  iceshroom: (x, y, row) => new IceMushroom(x, y, row),
 };
 
 export class Game extends GameEngine {

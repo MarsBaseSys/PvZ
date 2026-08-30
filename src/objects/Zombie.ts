@@ -15,6 +15,9 @@ export abstract class Zombie extends GameObject {
   attackPower: number;
   row: number;
 
+  /** Set once by a HypnoShroom's dying bite; reverses movement and turns this zombie against its former allies. */
+  hypnotized = false;
+
   private slowMultiplier = 1;
   private slowTimer = 0;
 
@@ -50,6 +53,11 @@ export abstract class Zombie extends GameObject {
     this.slowTimer = Math.max(this.slowTimer, duration);
   }
 
+  /** Flips this zombie to fight for the player: it now walks back toward the spawn edge. */
+  hypnotize(): void {
+    this.hypnotized = true;
+  }
+
   update(dt: number): void {
     if (this.slowTimer > 0) {
       this.slowTimer -= dt;
@@ -58,7 +66,8 @@ export abstract class Zombie extends GameObject {
         this.slowMultiplier = 1;
       }
     }
-    this.x -= this.speed * this.slowMultiplier * dt;
+    const direction = this.hypnotized ? 1 : -1;
+    this.x += direction * this.speed * this.slowMultiplier * dt;
   }
 
   protected renderSlowTint(ctx: CanvasRenderingContext2D): void {
@@ -67,6 +76,26 @@ export abstract class Zombie extends GameObject {
     }
     ctx.save();
     ctx.fillStyle = 'rgba(79, 195, 247, 0.28)';
+    ctx.beginPath();
+    ctx.ellipse(
+      this.x + this.width / 2,
+      this.y + this.height * 0.55,
+      this.width * 0.55,
+      this.height * 0.5,
+      0,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+    ctx.restore();
+  }
+
+  protected renderHypnoTint(ctx: CanvasRenderingContext2D): void {
+    if (!this.hypnotized) {
+      return;
+    }
+    ctx.save();
+    ctx.fillStyle = 'rgba(186, 104, 200, 0.35)';
     ctx.beginPath();
     ctx.ellipse(
       this.x + this.width / 2,
@@ -211,6 +240,7 @@ export class BasicZombie extends Zombie {
   render(ctx: CanvasRenderingContext2D): void {
     this.renderBody(ctx);
     this.renderSlowTint(ctx);
+    this.renderHypnoTint(ctx);
   }
 }
 
@@ -272,6 +302,7 @@ export class ConeheadZombie extends ArmoredZombie {
   render(ctx: CanvasRenderingContext2D): void {
     this.renderBody(ctx);
     this.renderSlowTint(ctx);
+    this.renderHypnoTint(ctx);
 
     if (this.armorHp > 0) {
       ctx.save();
@@ -337,6 +368,7 @@ export class BucketheadZombie extends ArmoredZombie {
   render(ctx: CanvasRenderingContext2D): void {
     this.renderBody(ctx);
     this.renderSlowTint(ctx);
+    this.renderHypnoTint(ctx);
 
     if (this.armorHp > 0) {
       ctx.save();

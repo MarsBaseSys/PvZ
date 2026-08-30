@@ -4,12 +4,15 @@ import { GAME_CONFIG } from '../config/gameConfig';
 const PEA_SIZE = 10;
 
 export class Pea extends Projectile {
+  /** Set once by GameEngine when this pea crosses a TorchWood's cell; doubles damage and drops the freeze effect. */
+  ignited = false;
+
   constructor(
     x: number,
     y: number,
     row: number,
-    damage = GAME_CONFIG.plants.peashooter.damage,
-    speed = GAME_CONFIG.plants.peashooter.peaSpeed,
+    damage: number = GAME_CONFIG.plants.peashooter.damage,
+    speed: number = GAME_CONFIG.plants.peashooter.peaSpeed,
     readonly slows = false,
   ) {
     super(x, y, PEA_SIZE, PEA_SIZE, damage, speed, row);
@@ -23,7 +26,11 @@ export class Pea extends Projectile {
     ctx.save();
 
     const gradient = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
-    if (this.slows) {
+    if (this.ignited) {
+      gradient.addColorStop(0, '#fff59d');
+      gradient.addColorStop(0.6, '#ff9800');
+      gradient.addColorStop(1, '#e65100');
+    } else if (this.slows) {
       gradient.addColorStop(0, '#e1f5fe');
       gradient.addColorStop(0.6, '#4fc3f7');
       gradient.addColorStop(1, '#0277bd');
@@ -36,7 +43,7 @@ export class Pea extends Projectile {
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = this.slows ? '#01579b' : '#1b5e20';
+    ctx.strokeStyle = this.ignited ? '#e65100' : this.slows ? '#01579b' : '#1b5e20';
     ctx.lineWidth = 1;
     ctx.stroke();
 

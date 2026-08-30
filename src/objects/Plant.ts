@@ -14,7 +14,10 @@ export type PlantType =
   | 'wallnut'
   | 'snowpea'
   | 'repeater'
-  | 'cherrybomb';
+  | 'cherrybomb'
+  | 'torchwood'
+  | 'hypnoshroom'
+  | 'iceshroom';
 
 export const PLANT_COSTS: Record<PlantType, number> = {
   sunflower: GAME_CONFIG.plants.sunflower.cost,
@@ -23,6 +26,9 @@ export const PLANT_COSTS: Record<PlantType, number> = {
   snowpea: GAME_CONFIG.plants.snowpea.cost,
   repeater: GAME_CONFIG.plants.repeater.cost,
   cherrybomb: GAME_CONFIG.plants.cherrybomb.cost,
+  torchwood: GAME_CONFIG.plants.torchwood.cost,
+  hypnoshroom: GAME_CONFIG.plants.hypnoshroom.cost,
+  iceshroom: GAME_CONFIG.plants.iceshroom.cost,
 };
 
 export const PLANT_COOLDOWNS: Record<PlantType, number> = {
@@ -32,6 +38,9 @@ export const PLANT_COOLDOWNS: Record<PlantType, number> = {
   snowpea: GAME_CONFIG.plants.snowpea.cooldown,
   repeater: GAME_CONFIG.plants.repeater.cooldown,
   cherrybomb: GAME_CONFIG.plants.cherrybomb.cooldown,
+  torchwood: GAME_CONFIG.plants.torchwood.cooldown,
+  hypnoshroom: GAME_CONFIG.plants.hypnoshroom.cooldown,
+  iceshroom: GAME_CONFIG.plants.iceshroom.cooldown,
 };
 
 export const PLANT_LABELS: Record<PlantType, string> = {
@@ -41,6 +50,9 @@ export const PLANT_LABELS: Record<PlantType, string> = {
   snowpea: '寒冰射手',
   repeater: '双发射手',
   cherrybomb: '樱桃炸弹',
+  torchwood: '火炬树桩',
+  hypnoshroom: '催眠蘑菇',
+  iceshroom: '冰蘑菇',
 };
 
 /** Simplified icon shared by the HUD plant cards and the reward-card popup. */
@@ -106,6 +118,70 @@ export function renderPlantIcon(
     ctx.beginPath();
     ctx.ellipse(cx + r * 0.1, cy - r * 0.15, r * 0.07, r * 0.09, 0, 0, Math.PI * 2);
     ctx.fill();
+  } else if (type === 'torchwood') {
+    ctx.fillStyle = '#6d4c26';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + r * 0.5, r * 0.6, r * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#8d6b3a';
+    ctx.fillRect(cx - r * 0.42, cy - r * 0.1, r * 0.84, r * 0.6);
+    ctx.strokeStyle = '#5d4321';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx - r * 0.42, cy - r * 0.1, r * 0.84, r * 0.6);
+
+    const flameGradient = ctx.createRadialGradient(cx, cy - r * 0.5, 0, cx, cy - r * 0.45, r * 0.55);
+    flameGradient.addColorStop(0, '#fff59d');
+    flameGradient.addColorStop(0.55, '#ff9800');
+    flameGradient.addColorStop(1, '#e65100');
+    ctx.fillStyle = flameGradient;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r * 0.95);
+    ctx.quadraticCurveTo(cx + r * 0.38, cy - r * 0.55, cx + r * 0.16, cy - r * 0.15);
+    ctx.quadraticCurveTo(cx + r * 0.05, cy - r * 0.35, cx, cy - r * 0.2);
+    ctx.quadraticCurveTo(cx - r * 0.05, cy - r * 0.35, cx - r * 0.16, cy - r * 0.15);
+    ctx.quadraticCurveTo(cx - r * 0.38, cy - r * 0.55, cx, cy - r * 0.95);
+    ctx.closePath();
+    ctx.fill();
+  } else if (type === 'hypnoshroom' || type === 'iceshroom') {
+    const iceLike = type === 'iceshroom';
+    const stemColor = iceLike ? '#e1f5fe' : '#e8d5c4';
+    const capHighlight = iceLike ? '#b3e5fc' : '#ce93d8';
+    const capShadow = iceLike ? '#01579b' : '#6a1b9a';
+    const spotColor = iceLike ? '#e1f5fe' : '#f3e5f5';
+
+    ctx.fillStyle = stemColor;
+    ctx.fillRect(cx - r * 0.22, cy, r * 0.44, r * 0.55);
+
+    const capGradient = ctx.createRadialGradient(cx - r * 0.2, cy - r * 0.2, 0, cx, cy, r * 0.75);
+    capGradient.addColorStop(0, capHighlight);
+    capGradient.addColorStop(1, capShadow);
+    ctx.fillStyle = capGradient;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - r * 0.05, r * 0.72, r * 0.5, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.strokeStyle = capShadow;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = spotColor;
+    const spots: Array<[number, number]> = [
+      [-0.3, -0.25],
+      [0.25, -0.3],
+      [0, -0.05],
+    ];
+    for (const [dx, dy] of spots) {
+      ctx.beginPath();
+      ctx.ellipse(cx + dx * r, cy + dy * r, r * 0.08, r * 0.06, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (!iceLike) {
+      ctx.strokeStyle = '#f8bbd0';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy - r * 0.15, r * 0.18, 0, Math.PI * 1.5);
+      ctx.stroke();
+    }
   } else {
     // cherrybomb
     ctx.strokeStyle = '#3e2b12';
@@ -607,5 +683,81 @@ export class CherryBomb extends Plant {
     }
     renderPlantIcon(ctx, 'cherrybomb', cx, cy, r * 1.1);
     ctx.restore();
+  }
+}
+
+/**
+ * Passive: does not attack on its own. Any pea passing through its cell in
+ * the same row gets ignited once (see GameEngine's pea-collision handling),
+ * doubling that pea's damage.
+ */
+export class TorchWood extends Plant {
+  private static readonly HP = GAME_CONFIG.plants.torchwood.hp;
+  private static readonly COST = PLANT_COSTS.torchwood;
+
+  constructor(x: number, y: number, row: number) {
+    super(x, y, CELL_SIZE - 10, CELL_SIZE - 10, TorchWood.HP, TorchWood.COST, PLANT_COOLDOWNS.torchwood, row);
+  }
+
+  render(ctx: CanvasRenderingContext2D): void {
+    const cx = this.x + this.width / 2;
+    const cy = this.y + this.height / 2;
+    const r = this.width / 2;
+    renderPlantIcon(ctx, 'torchwood', cx, cy, r * 1.2);
+  }
+}
+
+/**
+ * Passive: does not attack on its own. When a zombie's bite finishes it off,
+ * GameEngine hypnotizes that zombie instead of just removing the plant.
+ */
+export class HypnoShroom extends Plant {
+  private static readonly HP = GAME_CONFIG.plants.hypnoshroom.hp;
+  private static readonly COST = PLANT_COSTS.hypnoshroom;
+
+  constructor(x: number, y: number, row: number) {
+    super(x, y, CELL_SIZE - 10, CELL_SIZE - 10, HypnoShroom.HP, HypnoShroom.COST, PLANT_COOLDOWNS.hypnoshroom, row);
+  }
+
+  render(ctx: CanvasRenderingContext2D): void {
+    const cx = this.x + this.width / 2;
+    const cy = this.y + this.height / 2;
+    const r = this.width / 2;
+    renderPlantIcon(ctx, 'hypnoshroom', cx, cy, r * 1.2);
+  }
+}
+
+export class IceMushroom extends Plant {
+  private static readonly SHOOT_INTERVAL = GAME_CONFIG.plants.iceshroom.attackInterval;
+  private static readonly HP = GAME_CONFIG.plants.iceshroom.hp;
+  private static readonly COST = PLANT_COSTS.iceshroom;
+  private static readonly DAMAGE = GAME_CONFIG.plants.iceshroom.damage;
+  private static readonly PEA_SPEED = GAME_CONFIG.plants.iceshroom.peaSpeed;
+
+  private timer = 0;
+
+  constructor(x: number, y: number, row: number) {
+    super(x, y, CELL_SIZE - 10, CELL_SIZE - 10, IceMushroom.HP, IceMushroom.COST, PLANT_COOLDOWNS.iceshroom, row);
+  }
+
+  produce(dt: number, context: PlantContext): Pea | null {
+    if (!context.zombieAheadInRow(this.row, this.x)) {
+      return null;
+    }
+
+    this.timer += dt;
+    if (this.timer >= IceMushroom.SHOOT_INTERVAL) {
+      this.timer -= IceMushroom.SHOOT_INTERVAL;
+      const peaY = this.y + this.height / 2 - 5;
+      return new Pea(this.x + this.width, peaY, this.row, IceMushroom.DAMAGE, IceMushroom.PEA_SPEED, true);
+    }
+    return null;
+  }
+
+  render(ctx: CanvasRenderingContext2D): void {
+    const cx = this.x + this.width / 2;
+    const cy = this.y + this.height / 2;
+    const r = this.width / 2;
+    renderPlantIcon(ctx, 'iceshroom', cx, cy, r * 1.2);
   }
 }

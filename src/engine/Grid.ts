@@ -25,7 +25,8 @@ interface CardLayout {
 
 const CARD_WIDTH = 70;
 const CARD_HEIGHT = 80;
-const CARD_GAP = 10;
+// Kept tight enough that all 9 plant cards (once every reward is claimed) still fit before the canvas edge.
+const CARD_GAP = 6;
 const CARD_Y = 10;
 const CARD_START_X = BOARD_OFFSET_X + 120;
 

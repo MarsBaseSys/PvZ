@@ -13,6 +13,9 @@ export const PLANT_ALMANAC: Record<PlantType, AlmanacEntry> = {
   snowpea: { description: '发射的豌豆会让僵尸减速，配合输出效果更好' },
   repeater: { description: '一次连续发射两颗豌豆，火力是豌豆射手的两倍' },
   cherrybomb: { description: '种下后立即在周围爆炸，秒杀范围内的僵尸' },
+  torchwood: { description: '豌豆穿过它的火焰时伤害翻倍，是射手类植物的绝配' },
+  hypnoshroom: { description: '被僵尸吃掉时反过来催眠对方，让它为你作战' },
+  iceshroom: { description: '增强版寒冰射手，血量厚实，攻击附带减速' },
 };
 
 export const ZOMBIE_ALMANAC: Record<ZombieType, AlmanacEntry> = {
