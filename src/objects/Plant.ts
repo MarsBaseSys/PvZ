@@ -86,22 +86,23 @@ export function renderPlantIcon(
     ctx.ellipse(cx + r * 0.15, cy - r * 0.08, r * 0.06, r * 0.09, 0, 0, Math.PI * 2);
     ctx.fill();
   } else if (type === 'peashooter' || type === 'snowpea' || type === 'repeater') {
-    const bodyColor = type === 'snowpea' ? '#4fc3f7' : '#2e7d32';
-    const headColor = type === 'snowpea' ? '#81d4fa' : '#43a047';
-    const tubeColor = type === 'snowpea' ? '#0277bd' : '#1b5e20';
+    // round head on a thin stalk — matches Peashooter's full-size render silhouette
+    const headColor = type === 'snowpea' ? '#81d4fa' : '#9ccc65';
+    const stalkColor = type === 'snowpea' ? '#0277bd' : '#33691e';
+    const tubeColor = type === 'snowpea' ? '#01579b' : '#1b5e20';
 
-    ctx.fillStyle = bodyColor;
-    ctx.beginPath();
-    ctx.arc(cx, cy + r * 0.15, r * 0.72, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = stalkColor;
+    ctx.fillRect(cx - r * 0.12, cy, r * 0.24, r * 0.65);
+
     ctx.fillStyle = headColor;
     ctx.beginPath();
-    ctx.arc(cx - r * 0.1, cy - r * 0.2, r * 0.5, 0, Math.PI * 2);
+    ctx.arc(cx - r * 0.05, cy - r * 0.25, r * 0.6, 0, Math.PI * 2);
     ctx.fill();
+
     ctx.fillStyle = tubeColor;
-    ctx.fillRect(cx + r * 0.2, cy - r * 0.35 - 4, r * 0.8, 8);
+    ctx.fillRect(cx + r * 0.25, cy - r * 0.35 - 4, r * 0.75, 8);
     if (type === 'repeater') {
-      ctx.fillRect(cx + r * 0.2, cy - r * 0.35 + 8, r * 0.8, 8);
+      ctx.fillRect(cx + r * 0.25, cy - r * 0.35 + 8, r * 0.75, 8);
     }
   } else if (type === 'wallnut') {
     ctx.fillStyle = '#a9784a';
@@ -383,38 +384,39 @@ export class Peashooter extends Plant {
 
     ctx.save();
 
-    // leaves at the base
+    // head sits high, roughly twice the stalk's width — the classic silhouette
+    // is a big round head on a narrow stem, not two similarly-sized circles
+    const headCx = cx - r * 0.05;
+    const headCy = cy - r * 0.32;
+    const headR = r * 0.62;
+
+    // leaves at the base of the stalk
     ctx.fillStyle = '#558b2f';
     ctx.beginPath();
-    ctx.moveTo(cx - 6, cy + r * 0.75);
-    ctx.quadraticCurveTo(cx - r * 0.75, cy + r * 0.65, cx - r * 0.5, cy + r * 0.95);
-    ctx.quadraticCurveTo(cx - r * 0.2, cy + r * 0.85, cx - 6, cy + r * 0.75);
+    ctx.moveTo(cx - 6, cy + r * 0.55);
+    ctx.quadraticCurveTo(cx - r * 0.7, cy + r * 0.45, cx - r * 0.45, cy + r * 0.72);
+    ctx.quadraticCurveTo(cx - r * 0.15, cy + r * 0.62, cx - 6, cy + r * 0.55);
     ctx.fill();
-
-    // body (bulb)
-    const bodyGradient = ctx.createRadialGradient(
-      cx - r * 0.2,
-      cy + r * 0.1,
-      r * 0.1,
-      cx,
-      cy + r * 0.2,
-      r * 0.7,
-    );
-    bodyGradient.addColorStop(0, '#8bc34a');
-    bodyGradient.addColorStop(1, '#33691e');
-    ctx.fillStyle = bodyGradient;
     ctx.beginPath();
-    ctx.arc(cx, cy + r * 0.2, r * 0.65, 0, Math.PI * 2);
+    ctx.moveTo(cx + 6, cy + r * 0.6);
+    ctx.quadraticCurveTo(cx + r * 0.65, cy + r * 0.5, cx + r * 0.4, cy + r * 0.75);
+    ctx.quadraticCurveTo(cx + r * 0.12, cy + r * 0.68, cx + 6, cy + r * 0.6);
     ctx.fill();
-    ctx.strokeStyle = '#1b5e20';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
 
-    // head — bigger and rounder, closer to the classic proportions (head
-    // roughly as big as the body, sitting high with a forward-looking tube)
-    const headCx = cx - r * 0.05;
-    const headCy = cy - r * 0.3;
-    const headR = r * 0.58;
+    // thin stalk connecting the head to the ground
+    const stalkTopY = headCy + headR * 0.5;
+    const stalkBottomY = cy + r * 0.85;
+    const stalkGradient = ctx.createLinearGradient(cx - 10, 0, cx + 10, 0);
+    stalkGradient.addColorStop(0, '#33691e');
+    stalkGradient.addColorStop(1, '#558b2f');
+    ctx.fillStyle = stalkGradient;
+    ctx.beginPath();
+    ctx.moveTo(cx - 9, stalkTopY);
+    ctx.lineTo(cx + 9, stalkTopY);
+    ctx.lineTo(cx + 6, stalkBottomY);
+    ctx.lineTo(cx - 6, stalkBottomY);
+    ctx.closePath();
+    ctx.fill();
     const headGradient = ctx.createRadialGradient(
       headCx - headR * 0.35,
       headCy - headR * 0.35,

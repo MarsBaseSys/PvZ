@@ -21,6 +21,9 @@ export abstract class Zombie extends GameObject {
   private slowMultiplier = 1;
   private slowTimer = 0;
 
+  private attacking = false;
+  private attackAnimTimer = 0;
+
   constructor(
     x: number,
     y: number,
@@ -56,6 +59,21 @@ export abstract class Zombie extends GameObject {
   /** Flips this zombie to fight for the player: it now walks back toward the spawn edge. */
   hypnotize(): void {
     this.hypnotized = true;
+  }
+
+  /** GameEngine calls this every frame to say whether this zombie is currently biting a target this frame. */
+  setAttacking(isAttacking: boolean): void {
+    this.attacking = isAttacking;
+    if (!isAttacking) {
+      this.attackAnimTimer = 0;
+    }
+  }
+
+  /** Advances the bite-cycle clock; only meaningful while `attacking`. */
+  tickAttackAnimation(dt: number): void {
+    if (this.attacking) {
+      this.attackAnimTimer += dt;
+    }
   }
 
   update(dt: number): void {
@@ -115,18 +133,22 @@ export abstract class Zombie extends GameObject {
     const headCy = this.y + this.height * 0.15;
     const headR = this.width * 0.35;
 
+    // A 0..1 "chomp" pulse while attacking — drives the arm lunge and mouth
+    // gape below so a biting zombie visibly moves instead of standing frozen.
+    const bite = this.attacking ? (1 - Math.cos(this.attackAnimTimer * 9)) / 2 : 0;
+
     ctx.save();
 
     // legs hint
-    ctx.fillStyle = '#455a64';
+    ctx.fillStyle = '#37474f';
     ctx.fillRect(this.x + this.width * 0.15, this.y + this.height * 0.92, this.width * 0.25, this.height * 0.08);
     ctx.fillRect(this.x + this.width * 0.6, this.y + this.height * 0.92, this.width * 0.25, this.height * 0.08);
 
-    // torso: tattered shirt via a jagged bottom/side edge — dirty teal-grey,
-    // closer to the classic zombie's ragged button-up than a plain cream shirt
+    // torso: dark, tattered office jacket over a lighter shirt/tie strip —
+    // the "shambling office worker" silhouette most people recognize
     const torsoTop = this.y + this.height * 0.25;
     const torsoBottom = this.y + this.height * 0.92;
-    ctx.fillStyle = '#8d9c93';
+    ctx.fillStyle = '#37474f';
     ctx.beginPath();
     ctx.moveTo(this.x, torsoTop);
     ctx.lineTo(this.x + this.width, torsoTop);
@@ -139,18 +161,29 @@ export abstract class Zombie extends GameObject {
     ctx.lineTo(this.x, torsoBottom - 6);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#5c6b62';
+    ctx.strokeStyle = '#1c272b';
     ctx.lineWidth = 1;
     ctx.stroke();
 
+    // shirt/tie strip down the center
+    ctx.fillStyle = '#cfd8dc';
+    ctx.beginPath();
+    ctx.moveTo(cx - this.width * 0.13, torsoTop);
+    ctx.lineTo(cx + this.width * 0.13, torsoTop);
+    ctx.lineTo(cx + this.width * 0.08, torsoBottom - 14);
+    ctx.lineTo(cx, torsoBottom - 4);
+    ctx.lineTo(cx - this.width * 0.08, torsoBottom - 14);
+    ctx.closePath();
+    ctx.fill();
+
     // grime/rip marks
-    ctx.strokeStyle = '#4f5d55';
+    ctx.strokeStyle = '#1c272b';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(this.x + this.width * 0.3, torsoTop + 8);
-    ctx.lineTo(this.x + this.width * 0.38, torsoTop + 22);
-    ctx.moveTo(this.x + this.width * 0.65, torsoTop + 14);
-    ctx.lineTo(this.x + this.width * 0.58, torsoTop + 30);
+    ctx.moveTo(this.x + this.width * 0.28, torsoTop + 10);
+    ctx.lineTo(this.x + this.width * 0.36, torsoTop + 24);
+    ctx.moveTo(this.x + this.width * 0.68, torsoTop + 16);
+    ctx.lineTo(this.x + this.width * 0.6, torsoTop + 32);
     ctx.stroke();
 
     // head with a more saturated yellow-green gradient skin, closer to the classic tone
@@ -172,7 +205,15 @@ export abstract class Zombie extends GameObject {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // eyes
+    // sunken eye sockets, then the dark hollow eyes themselves
+    ctx.fillStyle = 'rgba(30, 20, 10, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(cx - headR * 0.35, headCy - headR * 0.08, headR * 0.24, headR * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cx + headR * 0.15, headCy - headR * 0.08, headR * 0.24, headR * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.fillStyle = '#1b1b1b';
     ctx.beginPath();
     ctx.ellipse(cx - headR * 0.35, headCy - headR * 0.1, headR * 0.14, headR * 0.18, 0, 0, Math.PI * 2);
@@ -181,36 +222,42 @@ export abstract class Zombie extends GameObject {
     ctx.ellipse(cx + headR * 0.15, headCy - headR * 0.1, headR * 0.14, headR * 0.18, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // groaning open mouth
-    ctx.fillStyle = '#3e2f1c';
+    // groaning open mouth — gapes wider mid-bite, with a couple of ragged teeth
+    const mouthOpen = headR * (0.18 + bite * 0.22);
+    ctx.fillStyle = '#2b1e10';
     ctx.beginPath();
-    ctx.ellipse(cx - headR * 0.1, headCy + headR * 0.42, headR * 0.3, headR * 0.18, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx - headR * 0.1, headCy + headR * 0.42, headR * 0.3, mouthOpen, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = '#e8e3d3';
+    ctx.fillRect(cx - headR * 0.28, headCy + headR * 0.34, headR * 0.12, headR * 0.14);
+    ctx.fillRect(cx + headR * 0.08, headCy + headR * 0.34, headR * 0.12, headR * 0.14);
 
-    // arms: short filled "sleeve" segments ending in fists, reaching forward
-    ctx.fillStyle = '#d8d2bd';
-    ctx.strokeStyle = '#8d9ea6';
+    // arms: short filled "sleeve" segments ending in fists, reaching forward —
+    // swing further in and out while attacking to read as an actual bite/grab
+    ctx.fillStyle = '#cfd8dc';
     const armY = this.y + this.height * 0.4;
+    const armSwing = bite * 0.35;
+    const armReach = 18 + bite * 6;
 
     ctx.save();
     ctx.translate(this.x, armY);
-    ctx.rotate(-0.15);
-    ctx.fillRect(-18, -5, 18, 10);
+    ctx.rotate(-0.15 - armSwing);
+    ctx.fillRect(-armReach, -5, armReach, 10);
     ctx.restore();
     ctx.fillStyle = '#5d6b2f';
     ctx.beginPath();
-    ctx.arc(this.x - 16, armY - 3, 6, 0, Math.PI * 2);
+    ctx.arc(this.x - armReach + 2, armY - 3, 6, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#d8d2bd';
+    ctx.fillStyle = '#cfd8dc';
     ctx.save();
     ctx.translate(this.x + this.width, armY);
-    ctx.rotate(0.15);
-    ctx.fillRect(0, -5, 18, 10);
+    ctx.rotate(0.15 + armSwing);
+    ctx.fillRect(0, -5, armReach, 10);
     ctx.restore();
     ctx.fillStyle = '#5d6b2f';
     ctx.beginPath();
-    ctx.arc(this.x + this.width + 16, armY - 3, 6, 0, Math.PI * 2);
+    ctx.arc(this.x + this.width + armReach - 2, armY - 3, 6, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();

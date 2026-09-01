@@ -366,12 +366,15 @@ export abstract class GameEngine {
       const opponent = this.findZombieOpponent(zombie);
       if (opponent) {
         this.zombieAttacks.delete(zombie);
+        zombie.setAttacking(true);
+        zombie.tickAttackAnimation(dt);
         this.resolveZombieDuel(zombie, opponent, dt);
         continue;
       }
       this.zombieDuels.delete(zombie);
 
       if (zombie.hypnotized) {
+        zombie.setAttacking(false);
         zombie.update(dt);
         continue;
       }
@@ -380,7 +383,10 @@ export abstract class GameEngine {
       if (attackState) {
         if (!attackState.target.active || !intersects(zombie.bounds, attackState.target.bounds)) {
           this.zombieAttacks.delete(zombie);
+          zombie.setAttacking(false);
         } else {
+          zombie.setAttacking(true);
+          zombie.tickAttackAnimation(dt);
           attackState.timer -= dt;
           if (attackState.timer <= 0) {
             attackState.target.takeDamage(zombie.attackPower * GameEngine.ZOMBIE_ATTACK_INTERVAL);
@@ -403,9 +409,12 @@ export abstract class GameEngine {
           target: blockingPlant,
           timer: GameEngine.ZOMBIE_ATTACK_INTERVAL,
         });
+        zombie.setAttacking(true);
+        zombie.tickAttackAnimation(dt);
         continue;
       }
 
+      zombie.setAttacking(false);
       zombie.update(dt);
     }
   }
