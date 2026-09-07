@@ -1,24 +1,26 @@
-import { Pea } from '../objects/Pea';
+import { Seed } from '../objects/Seed';
 import {
-  CherryBomb,
-  HypnoShroom,
+  Blastcap,
+  Dreamspore,
+  Emberroot,
   Plant,
   PLANT_COSTS,
   PLANT_LABELS,
+  PLANT_NAMES_EN,
   renderPlantIcon,
-  TorchWood,
   type PlantContext,
   type PlantType,
 } from '../objects/Plant';
 import { RewardCard } from '../objects/RewardCard';
 import { Sun } from '../objects/Sun';
 import {
-  BasicZombie,
-  BucketheadZombie,
-  ConeheadZombie,
   createZombie,
+  Husk,
+  PodHeadHusk,
+  StumpHusk,
   Zombie,
   ZOMBIE_LABELS,
+  ZOMBIE_NAMES_EN,
   type ZombieType,
 } from '../objects/Zombie';
 import { LevelManager } from './LevelManager';
@@ -101,24 +103,24 @@ const LEVEL_SELECT_BUTTONS: Array<{ id: string; rect: ButtonRect }> = LEVEL_ORDE
 const FINAL_WAVE_BANNER_DURATION = 3.5;
 
 const ALMANAC_PLANT_TYPES: PlantType[] = [
-  'sunflower',
-  'peashooter',
-  'wallnut',
-  'snowpea',
-  'repeater',
-  'cherrybomb',
-  'torchwood',
-  'hypnoshroom',
-  'iceshroom',
+  'moonbud',
+  'thornsnap',
+  'barkbulwark',
+  'frostlily',
+  'twinfang',
+  'blastcap',
+  'emberroot',
+  'dreamspore',
+  'glacierbloom',
 ];
-const ALMANAC_ZOMBIE_TYPES: ZombieType[] = ['basic', 'conehead', 'buckethead'];
+const ALMANAC_ZOMBIE_TYPES: ZombieType[] = ['husk', 'podhead', 'stumphusk'];
 
 export abstract class GameEngine {
   protected readonly ctx: CanvasRenderingContext2D;
 
   protected plants: Plant[] = [];
   protected zombies: Zombie[] = [];
-  protected peas: Pea[] = [];
+  protected seeds: Seed[] = [];
   protected suns: Sun[] = [];
   protected rewardCard: RewardCard | null = null;
 
@@ -130,12 +132,12 @@ export abstract class GameEngine {
   private readonly zombieDuels = new Map<Zombie, { target: Zombie; timer: number }>();
   private static readonly ZOMBIE_ATTACK_INTERVAL = GAME_CONFIG.combat.zombieAttackInterval;
 
-  private static readonly SNOW_PEA_SLOW_FACTOR = GAME_CONFIG.plants.snowpea.slowFactor;
-  private static readonly SNOW_PEA_SLOW_DURATION = GAME_CONFIG.plants.snowpea.slowDuration;
+  private static readonly FROST_SLOW_FACTOR = GAME_CONFIG.plants.frostlily.slowFactor;
+  private static readonly FROST_SLOW_DURATION = GAME_CONFIG.plants.frostlily.slowDuration;
 
-  private static readonly CHERRY_BOMB_DAMAGE = GAME_CONFIG.plants.cherrybomb.damage;
-  private static readonly CHERRY_BOMB_RADIUS_PX =
-    GAME_CONFIG.plants.cherrybomb.radiusCells * CELL_SIZE + CELL_SIZE / 2;
+  private static readonly BLASTCAP_DAMAGE = GAME_CONFIG.plants.blastcap.damage;
+  private static readonly BLASTCAP_RADIUS_PX =
+    GAME_CONFIG.plants.blastcap.radiusCells * CELL_SIZE + CELL_SIZE / 2;
 
   private naturalSunTimer = 0;
   private static readonly NATURAL_SUN_INTERVAL = GAME_CONFIG.economy.naturalSunInterval;
@@ -180,17 +182,17 @@ export abstract class GameEngine {
     this.plants.push(plant);
     this.sound.playPlant();
 
-    if (plant instanceof CherryBomb) {
-      this.detonateCherryBomb(plant);
+    if (plant instanceof Blastcap) {
+      this.detonateBlastcap(plant);
     }
   }
 
-  private detonateCherryBomb(bomb: CherryBomb): void {
+  private detonateBlastcap(bomb: Blastcap): void {
     for (const zombie of this.zombies) {
       if (!zombie.active || zombie.hypnotized) continue;
       if (Math.abs(zombie.row - bomb.row) > 1) continue;
-      if (Math.abs(zombie.x - bomb.x) > GameEngine.CHERRY_BOMB_RADIUS_PX) continue;
-      zombie.takeDamage(GameEngine.CHERRY_BOMB_DAMAGE);
+      if (Math.abs(zombie.x - bomb.x) > GameEngine.BLASTCAP_RADIUS_PX) continue;
+      zombie.takeDamage(GameEngine.BLASTCAP_DAMAGE);
     }
     this.sound.playExplode();
   }
@@ -199,8 +201,8 @@ export abstract class GameEngine {
     this.zombies.push(zombie);
   }
 
-  protected addPea(pea: Pea): void {
-    this.peas.push(pea);
+  protected addSeed(seed: Seed): void {
+    this.seeds.push(seed);
     this.sound.playShoot();
   }
 
@@ -239,7 +241,7 @@ export abstract class GameEngine {
    * claimed): move on to the next level's settlement screen, or — if this
    * was the last level — show the final victory screen. Depends only on
    * whether a next level exists, not on whether this level handed out a
-   * reward (level 6 has neither).
+   * reward (the last level has neither).
    */
   private resolveLevelEnd(): void {
     this.state = this.levelManager.currentLevel.nextLevelId
@@ -250,7 +252,7 @@ export abstract class GameEngine {
   protected startLevel(levelId: string): void {
     this.plants = [];
     this.zombies = [];
-    this.peas = [];
+    this.seeds = [];
     this.suns = [];
     this.rewardCard = null;
     this.zombieAttacks.clear();
@@ -319,7 +321,7 @@ export abstract class GameEngine {
 
   private simulate(dt: number): void {
     this.handleZombieMovementAndAttacks(dt);
-    this.handlePeaMovementAndCollisions(dt);
+    this.handleSeedMovementAndCollisions(dt);
     this.handlePlantProduction(dt);
     this.handleSunFalling(dt);
     this.handleNaturalSunSpawn(dt);
@@ -391,8 +393,8 @@ export abstract class GameEngine {
           if (attackState.timer <= 0) {
             attackState.target.takeDamage(zombie.attackPower * GameEngine.ZOMBIE_ATTACK_INTERVAL);
             attackState.timer = GameEngine.ZOMBIE_ATTACK_INTERVAL;
-            // A HypnoShroom that dies to this bite hypnotizes its attacker instead of just vanishing.
-            if (!attackState.target.active && attackState.target instanceof HypnoShroom) {
+            // A Dreamspore that dies to this bite hypnotizes its attacker instead of just vanishing.
+            if (!attackState.target.active && attackState.target instanceof Dreamspore) {
               zombie.hypnotize();
               this.zombieAttacks.delete(zombie);
             }
@@ -445,33 +447,33 @@ export abstract class GameEngine {
     this.zombieDuels.set(zombie, { target: opponent, timer: GameEngine.ZOMBIE_ATTACK_INTERVAL });
   }
 
-  private handlePeaMovementAndCollisions(dt: number): void {
-    for (const pea of this.peas) {
-      if (!pea.active) continue;
-      pea.update(dt);
+  private handleSeedMovementAndCollisions(dt: number): void {
+    for (const seed of this.seeds) {
+      if (!seed.active) continue;
+      seed.update(dt);
 
-      if (!pea.ignited) {
-        const torch = this.plants.find(
+      if (!seed.ignited) {
+        const ember = this.plants.find(
           (plant) =>
             plant.active &&
-            plant instanceof TorchWood &&
-            plant.row === pea.row &&
-            intersects(pea.bounds, plant.bounds),
+            plant instanceof Emberroot &&
+            plant.row === seed.row &&
+            intersects(seed.bounds, plant.bounds),
         );
-        if (torch) {
-          pea.ignited = true;
-          pea.damage *= 2;
+        if (ember) {
+          seed.ignited = true;
+          seed.damage *= 2;
         }
       }
 
       for (const zombie of this.zombies) {
-        if (!zombie.active || zombie.hypnotized || zombie.row !== pea.row) continue;
-        if (intersects(pea.bounds, zombie.bounds)) {
-          zombie.takeDamage(pea.damage);
-          if (pea.slows && !pea.ignited) {
-            zombie.applySlow(GameEngine.SNOW_PEA_SLOW_DURATION, GameEngine.SNOW_PEA_SLOW_FACTOR);
+        if (!zombie.active || zombie.hypnotized || zombie.row !== seed.row) continue;
+        if (intersects(seed.bounds, zombie.bounds)) {
+          zombie.takeDamage(seed.damage);
+          if (seed.slows && !seed.ignited) {
+            zombie.applySlow(GameEngine.FROST_SLOW_DURATION, GameEngine.FROST_SLOW_FACTOR);
           }
-          pea.active = false;
+          seed.active = false;
           this.sound.playSplat();
           break;
         }
@@ -493,8 +495,8 @@ export abstract class GameEngine {
       const produced = plant.produce(dt, context);
       if (produced instanceof Sun) {
         this.addSun(produced);
-      } else if (produced instanceof Pea) {
-        this.addPea(produced);
+      } else if (produced instanceof Seed) {
+        this.addSeed(produced);
       }
     }
   }
@@ -566,7 +568,7 @@ export abstract class GameEngine {
   private cleanupInactive(): void {
     this.plants = this.plants.filter((plant) => plant.active);
     this.zombies = this.zombies.filter((zombie) => zombie.active);
-    this.peas = this.peas.filter((pea) => pea.active);
+    this.seeds = this.seeds.filter((seed) => seed.active);
     this.suns = this.suns.filter((sun) => sun.active);
 
     for (const [zombie, state] of this.zombieAttacks) {
@@ -588,8 +590,8 @@ export abstract class GameEngine {
     for (const zombie of this.zombies) {
       zombie.render(this.ctx);
     }
-    for (const pea of this.peas) {
-      pea.render(this.ctx);
+    for (const seed of this.seeds) {
+      seed.render(this.ctx);
     }
     for (const sun of this.suns) {
       sun.render(this.ctx);
@@ -774,7 +776,7 @@ export abstract class GameEngine {
 
       this.ctx.fillStyle = '#ffffff';
       this.ctx.font = 'bold 14px sans-serif';
-      this.ctx.fillText(PLANT_LABELS[type], cellX + 64, cellY + 18);
+      this.ctx.fillText(`${PLANT_LABELS[type]} ${PLANT_NAMES_EN[type]}`, cellX + 64, cellY + 18);
 
       this.ctx.fillStyle = '#fdd835';
       this.ctx.font = '12px sans-serif';
@@ -796,11 +798,11 @@ export abstract class GameEngine {
       const cellCenterX = cellX + cellWidth / 2;
 
       const zombie =
-        type === 'basic'
-          ? new BasicZombie(0, 0, 0)
-          : type === 'conehead'
-            ? new ConeheadZombie(0, 0, 0)
-            : new BucketheadZombie(0, 0, 0);
+        type === 'husk'
+          ? new Husk(0, 0, 0)
+          : type === 'podhead'
+            ? new PodHeadHusk(0, 0, 0)
+            : new StumpHusk(0, 0, 0);
       zombie.x = cellCenterX - zombie.width / 2;
       zombie.y = zombieGridTop;
       zombie.render(this.ctx);
@@ -808,7 +810,7 @@ export abstract class GameEngine {
       this.ctx.fillStyle = '#ffffff';
       this.ctx.font = 'bold 14px sans-serif';
       this.ctx.textAlign = 'center';
-      this.ctx.fillText(ZOMBIE_LABELS[type], cellCenterX, zombieGridTop + 90);
+      this.ctx.fillText(`${ZOMBIE_LABELS[type]} ${ZOMBIE_NAMES_EN[type]}`, cellCenterX, zombieGridTop + 90);
 
       this.ctx.fillStyle = '#e0e0e0';
       this.ctx.font = '12px sans-serif';

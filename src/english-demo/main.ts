@@ -51,6 +51,8 @@ class EnglishDemo {
   private readonly startScreen: HTMLElement;
   private readonly gameScreen: HTMLElement;
   private readonly summaryScreen: HTMLElement;
+  private readonly wordListScreen: HTMLElement;
+  private readonly wordListContainer: HTMLElement;
   private readonly hudRound: HTMLElement;
   private readonly hudStars: HTMLElement;
   private readonly cardRow: HTMLElement;
@@ -63,6 +65,7 @@ class EnglishDemo {
         <h1>🌻 Learn English with Plants vs Zombies! 🧟</h1>
         <p class="subtitle">Listen carefully, then tap the right picture!</p>
         <button class="big-button" id="start-button">▶ Start</button>
+        <button class="secondary-button" id="wordlist-button">📖 单词表 Word List</button>
       </section>
 
       <section class="screen hidden" id="game-screen">
@@ -79,11 +82,20 @@ class EnglishDemo {
         <div class="summary-stars" id="summary-stars"></div>
         <button class="big-button" id="restart-button">🔁 Play again</button>
       </section>
+
+      <section class="screen hidden" id="wordlist-screen">
+        <h1>📖 单词表 Word List</h1>
+        <p class="subtitle">全部单词 · 中英对照 · 点击 🔊 听发音</p>
+        <div class="word-list" id="wordlist-container"></div>
+        <button class="big-button" id="wordlist-back-button">◀ 返回 Back</button>
+      </section>
     `;
 
     this.startScreen = this.require(root, '#start-screen');
     this.gameScreen = this.require(root, '#game-screen');
     this.summaryScreen = this.require(root, '#summary-screen');
+    this.wordListScreen = this.require(root, '#wordlist-screen');
+    this.wordListContainer = this.require(root, '#wordlist-container');
     this.hudRound = this.require(root, '#hud-round');
     this.hudStars = this.require(root, '#hud-stars');
     this.cardRow = this.require(root, '#card-row');
@@ -92,6 +104,8 @@ class EnglishDemo {
 
     this.require(root, '#start-button').addEventListener('click', () => this.beginSession());
     this.require(root, '#restart-button').addEventListener('click', () => this.beginSession());
+    this.require(root, '#wordlist-button').addEventListener('click', () => this.showWordList());
+    this.require(root, '#wordlist-back-button').addEventListener('click', () => this.showScreen(this.startScreen));
     this.listenButton.addEventListener('click', () => this.speakPrompt());
   }
 
@@ -112,8 +126,49 @@ class EnglishDemo {
   }
 
   private showScreen(screen: HTMLElement): void {
-    for (const s of [this.startScreen, this.gameScreen, this.summaryScreen]) {
+    for (const s of [this.startScreen, this.gameScreen, this.summaryScreen, this.wordListScreen]) {
       s.classList.toggle('hidden', s !== screen);
+    }
+  }
+
+  private showWordList(): void {
+    this.renderWordList();
+    this.showScreen(this.wordListScreen);
+  }
+
+  private renderWordList(): void {
+    this.wordListContainer.innerHTML = '';
+
+    for (const entry of VOCABULARY) {
+      const row = document.createElement('div');
+      row.className = 'word-row';
+
+      const canvas = document.createElement('canvas');
+      canvas.width = CANVAS_RESOLUTION;
+      canvas.height = CANVAS_RESOLUTION;
+      drawIcon(canvas, entry);
+
+      const info = document.createElement('div');
+      info.className = 'word-info';
+      info.innerHTML = `
+        <div class="word-heading">
+          <span class="word-en">${entry.word}</span>
+          <span class="word-zh">${entry.translationZh}</span>
+        </div>
+        <p class="word-explanation word-explanation-en">${entry.explanationEn}</p>
+        <p class="word-explanation word-explanation-zh">${entry.explanationZh}</p>
+      `;
+
+      const listenBtn = document.createElement('button');
+      listenBtn.className = 'word-listen-button';
+      listenBtn.type = 'button';
+      listenBtn.textContent = '🔊';
+      listenBtn.addEventListener('click', () => this.speech.speak(entry.word));
+
+      row.appendChild(canvas);
+      row.appendChild(info);
+      row.appendChild(listenBtn);
+      this.wordListContainer.appendChild(row);
     }
   }
 

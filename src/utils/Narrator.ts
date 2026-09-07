@@ -10,33 +10,33 @@ const SUN_PHRASES = [
 ];
 
 const PLANTED_PHRASES: Record<PlantType, string[]> = {
-  sunflower: ['Sunflower!', 'You planted a sunflower!', 'Nice sunflower!'],
-  peashooter: ['Peashooter!', 'You planted a peashooter!', 'Peashooter, ready to shoot!'],
-  wallnut: ['Wall-nut!', 'Strong wall-nut!', 'You planted a wall-nut!'],
-  snowpea: ['Snow Pea!', 'You planted a snow pea!', 'Snow pea, ready to freeze!'],
-  repeater: ['Repeater!', 'You planted a repeater!', 'Double the peas!'],
-  cherrybomb: ['Cherry Bomb!', 'You planted a cherry bomb!', 'Boom, incoming!'],
-  torchwood: ['Torchwood!', 'You planted a torchwood!', 'Fired up and ready!'],
-  hypnoshroom: ['Hypno-shroom!', 'You planted a hypno-shroom!', 'Time to hypnotize!'],
-  iceshroom: ['Ice-shroom!', 'You planted an ice-shroom!', 'Chilly and ready!'],
+  moonbud: ['Moonbud!', 'You planted a moonbud!', 'Nice moonbud!'],
+  thornsnap: ['Thornsnap!', 'You planted a thornsnap!', 'Thornsnap, ready to strike!'],
+  barkbulwark: ['Bark Bulwark!', 'Strong bark bulwark!', 'You planted a bark bulwark!'],
+  frostlily: ['Frost Lily!', 'You planted a frost lily!', 'Frost lily, ready to freeze!'],
+  twinfang: ['Twin Fang!', 'You planted a twin fang!', 'Double the seeds!'],
+  blastcap: ['Blastcap!', 'You planted a blastcap!', 'Boom, incoming!'],
+  emberroot: ['Emberroot!', 'You planted an emberroot!', 'Fired up and ready!'],
+  dreamspore: ['Dreamspore!', 'You planted a dreamspore!', 'Time to hypnotize!'],
+  glacierbloom: ['Glacier Bloom!', 'You planted a glacier bloom!', 'Chilly and ready!'],
 };
 
 const ZOMBIE_PHRASES: Record<ZombieType, string[]> = {
-  basic: ['A zombie is coming!', 'Watch out, zombie!', 'Here comes a zombie!'],
-  conehead: ['A cone-head zombie is coming!', 'Watch out for the cone-head zombie!'],
-  buckethead: ['A bucket-head zombie is coming!', 'Watch out, bucket-head zombie!'],
+  husk: ['A husk is coming!', 'Watch out, husk!', 'Here comes a husk!'],
+  podhead: ['A pod-head husk is coming!', 'Watch out for the pod-head husk!'],
+  stumphusk: ['A stump husk is coming!', 'Watch out, stump husk!'],
 };
 
 const REWARD_PHRASES: Record<PlantType, string[]> = {
-  sunflower: ['Great job! You unlocked the sunflower!', 'Awesome! Say hello to your new sunflower!'],
-  peashooter: ['Great job! You unlocked the peashooter!', 'Awesome! Say hello to your new peashooter!'],
-  wallnut: ['Great job! You unlocked the wall-nut!', 'Awesome! Say hello to your new wall-nut!'],
-  snowpea: ['Great job! You unlocked the snow pea!', 'Awesome! Say hello to your new snow pea!'],
-  repeater: ['Great job! You unlocked the repeater!', 'Awesome! Say hello to your new repeater!'],
-  cherrybomb: ['Great job! You unlocked the cherry bomb!', 'Awesome! Say hello to your new cherry bomb!'],
-  torchwood: ['Great job! You unlocked the torchwood!', 'Awesome! Say hello to your new torchwood!'],
-  hypnoshroom: ['Great job! You unlocked the hypno-shroom!', 'Awesome! Say hello to your new hypno-shroom!'],
-  iceshroom: ['Great job! You unlocked the ice-shroom!', 'Awesome! Say hello to your new ice-shroom!'],
+  moonbud: ['Great job! You unlocked the moonbud!', 'Awesome! Say hello to your new moonbud!'],
+  thornsnap: ['Great job! You unlocked the thornsnap!', 'Awesome! Say hello to your new thornsnap!'],
+  barkbulwark: ['Great job! You unlocked the bark bulwark!', 'Awesome! Say hello to your new bark bulwark!'],
+  frostlily: ['Great job! You unlocked the frost lily!', 'Awesome! Say hello to your new frost lily!'],
+  twinfang: ['Great job! You unlocked the twin fang!', 'Awesome! Say hello to your new twin fang!'],
+  blastcap: ['Great job! You unlocked the blastcap!', 'Awesome! Say hello to your new blastcap!'],
+  emberroot: ['Great job! You unlocked the emberroot!', 'Awesome! Say hello to your new emberroot!'],
+  dreamspore: ['Great job! You unlocked the dreamspore!', 'Awesome! Say hello to your new dreamspore!'],
+  glacierbloom: ['Great job! You unlocked the glacier bloom!', 'Awesome! Say hello to your new glacier bloom!'],
 };
 
 const WELCOME_PHRASES = ["Let's plant and learn English!", 'Ready, set, grow!'];

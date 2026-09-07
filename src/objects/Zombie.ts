@@ -1,12 +1,18 @@
 import { GameObject } from './GameObject';
 import { GAME_CONFIG } from '../config/gameConfig';
 
-export type ZombieType = 'basic' | 'conehead' | 'buckethead';
+export type ZombieType = 'husk' | 'podhead' | 'stumphusk';
 
 export const ZOMBIE_LABELS: Record<ZombieType, string> = {
-  basic: '普通僵尸',
-  conehead: '路障僵尸',
-  buckethead: '铁桶僵尸',
+  husk: '腐蔓伏尸',
+  podhead: '荚壳伏尸',
+  stumphusk: '树桩伏尸',
+};
+
+export const ZOMBIE_NAMES_EN: Record<ZombieType, string> = {
+  husk: 'Husk',
+  podhead: 'Pod-Head Husk',
+  stumphusk: 'Stump Husk',
 };
 
 export abstract class Zombie extends GameObject {
@@ -15,7 +21,7 @@ export abstract class Zombie extends GameObject {
   attackPower: number;
   row: number;
 
-  /** Set once by a HypnoShroom's dying bite; reverses movement and turns this zombie against its former allies. */
+  /** Set once by a Dreamspore's dying bite; reverses movement and turns this zombie against its former allies. */
   hypnotized = false;
 
   private slowMultiplier = 1;
@@ -133,60 +139,59 @@ export abstract class Zombie extends GameObject {
     const headCy = this.y + this.height * 0.15;
     const headR = this.width * 0.35;
 
-    // A 0..1 "chomp" pulse while attacking — drives the arm lunge and mouth
-    // gape below so a biting zombie visibly moves instead of standing frozen.
+    // A 0..1 "chomp" pulse while attacking — drives the vine-arm lunge and
+    // maw gape below so a biting Husk visibly moves instead of standing frozen.
     const bite = this.attacking ? (1 - Math.cos(this.attackAnimTimer * 9)) / 2 : 0;
 
     ctx.save();
 
-    // legs hint
-    ctx.fillStyle = '#37474f';
+    // gnarled root stubs for legs
+    ctx.fillStyle = '#3e2723';
     ctx.fillRect(this.x + this.width * 0.15, this.y + this.height * 0.92, this.width * 0.25, this.height * 0.08);
     ctx.fillRect(this.x + this.width * 0.6, this.y + this.height * 0.92, this.width * 0.25, this.height * 0.08);
 
-    // torso: dark, tattered office jacket over a lighter shirt/tie strip —
-    // the "shambling office worker" silhouette most people recognize
+    // torso: a ragged cloak of overlapping dead leaves, mossy green-brown —
+    // a plant-matter husk instead of a clothed human silhouette
     const torsoTop = this.y + this.height * 0.25;
     const torsoBottom = this.y + this.height * 0.92;
-    ctx.fillStyle = '#37474f';
+    const torsoGradient = ctx.createLinearGradient(this.x, torsoTop, this.x, torsoBottom);
+    torsoGradient.addColorStop(0, '#6d7a42');
+    torsoGradient.addColorStop(1, '#4b5320');
+    ctx.fillStyle = torsoGradient;
     ctx.beginPath();
     ctx.moveTo(this.x, torsoTop);
+    ctx.lineTo(this.x + this.width * 0.5, torsoTop - 6);
     ctx.lineTo(this.x + this.width, torsoTop);
-    ctx.lineTo(this.x + this.width, torsoBottom - 10);
-    ctx.lineTo(this.x + this.width * 0.85, torsoBottom);
-    ctx.lineTo(this.x + this.width * 0.7, torsoBottom - 8);
-    ctx.lineTo(this.x + this.width * 0.55, torsoBottom);
-    ctx.lineTo(this.x + this.width * 0.4, torsoBottom - 10);
-    ctx.lineTo(this.x + this.width * 0.22, torsoBottom);
-    ctx.lineTo(this.x, torsoBottom - 6);
+    ctx.lineTo(this.x + this.width, torsoBottom - 12);
+    ctx.lineTo(this.x + this.width * 0.82, torsoBottom + 4);
+    ctx.lineTo(this.x + this.width * 0.64, torsoBottom - 10);
+    ctx.lineTo(this.x + this.width * 0.46, torsoBottom + 6);
+    ctx.lineTo(this.x + this.width * 0.28, torsoBottom - 10);
+    ctx.lineTo(this.x + this.width * 0.1, torsoBottom + 2);
+    ctx.lineTo(this.x, torsoBottom - 8);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#1c272b';
+    ctx.strokeStyle = '#33390f';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // shirt/tie strip down the center
-    ctx.fillStyle = '#cfd8dc';
-    ctx.beginPath();
-    ctx.moveTo(cx - this.width * 0.13, torsoTop);
-    ctx.lineTo(cx + this.width * 0.13, torsoTop);
-    ctx.lineTo(cx + this.width * 0.08, torsoBottom - 14);
-    ctx.lineTo(cx, torsoBottom - 4);
-    ctx.lineTo(cx - this.width * 0.08, torsoBottom - 14);
-    ctx.closePath();
-    ctx.fill();
-
-    // grime/rip marks
-    ctx.strokeStyle = '#1c272b';
+    // leaf veins down the front instead of a shirt/tie
+    ctx.strokeStyle = 'rgba(51, 57, 15, 0.6)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(this.x + this.width * 0.28, torsoTop + 10);
-    ctx.lineTo(this.x + this.width * 0.36, torsoTop + 24);
-    ctx.moveTo(this.x + this.width * 0.68, torsoTop + 16);
-    ctx.lineTo(this.x + this.width * 0.6, torsoTop + 32);
+    ctx.moveTo(cx, torsoTop + 2);
+    ctx.lineTo(cx, torsoBottom - 8);
+    for (let i = 1; i <= 3; i++) {
+      const y = torsoTop + ((torsoBottom - torsoTop) * i) / 4;
+      ctx.moveTo(cx, y);
+      ctx.lineTo(cx - this.width * 0.16, y + 6);
+      ctx.moveTo(cx, y);
+      ctx.lineTo(cx + this.width * 0.16, y + 6);
+    }
     ctx.stroke();
 
-    // head with a more saturated yellow-green gradient skin, closer to the classic tone
+    // head — same olive-green creature skin as before, reads fine as
+    // "rotting plant matter" rather than specifically human
     const headGradient = ctx.createRadialGradient(
       cx - headR * 0.3,
       headCy - headR * 0.3,
@@ -205,8 +210,18 @@ export abstract class Zombie extends GameObject {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // sunken eye sockets, then the dark hollow eyes themselves
-    ctx.fillStyle = 'rgba(30, 20, 10, 0.35)';
+    // a couple of dry twig sprouts on top instead of hair
+    ctx.strokeStyle = '#4b5320';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx - headR * 0.3, headCy - headR * 0.85);
+    ctx.lineTo(cx - headR * 0.42, headCy - headR * 1.25);
+    ctx.moveTo(cx + headR * 0.15, headCy - headR * 0.9);
+    ctx.lineTo(cx + headR * 0.25, headCy - headR * 1.3);
+    ctx.stroke();
+
+    // sunken eye sockets, then the glowing hollow eyes themselves
+    ctx.fillStyle = 'rgba(20, 15, 5, 0.4)';
     ctx.beginPath();
     ctx.ellipse(cx - headR * 0.35, headCy - headR * 0.08, headR * 0.24, headR * 0.28, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -214,74 +229,79 @@ export abstract class Zombie extends GameObject {
     ctx.ellipse(cx + headR * 0.15, headCy - headR * 0.08, headR * 0.24, headR * 0.28, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#1b1b1b';
+    ctx.fillStyle = '#ffeb3b';
     ctx.beginPath();
-    ctx.ellipse(cx - headR * 0.35, headCy - headR * 0.1, headR * 0.14, headR * 0.18, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx - headR * 0.35, headCy - headR * 0.1, headR * 0.12, headR * 0.15, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(cx + headR * 0.15, headCy - headR * 0.1, headR * 0.14, headR * 0.18, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + headR * 0.15, headCy - headR * 0.1, headR * 0.12, headR * 0.15, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // groaning open mouth — gapes wider mid-bite, with a couple of ragged teeth
+    // thorny maw — gapes wider mid-bite, small thorn "teeth" instead of human teeth
     const mouthOpen = headR * (0.18 + bite * 0.22);
     ctx.fillStyle = '#2b1e10';
     ctx.beginPath();
     ctx.ellipse(cx - headR * 0.1, headCy + headR * 0.42, headR * 0.3, mouthOpen, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#e8e3d3';
-    ctx.fillRect(cx - headR * 0.28, headCy + headR * 0.34, headR * 0.12, headR * 0.14);
-    ctx.fillRect(cx + headR * 0.08, headCy + headR * 0.34, headR * 0.12, headR * 0.14);
+    ctx.fillStyle = '#c8d67a';
+    ctx.beginPath();
+    ctx.moveTo(cx - headR * 0.22, headCy + headR * (0.3 + bite * 0.15));
+    ctx.lineTo(cx - headR * 0.16, headCy + headR * (0.42 + bite * 0.2));
+    ctx.lineTo(cx - headR * 0.1, headCy + headR * (0.3 + bite * 0.15));
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx + headR * 0.05, headCy + headR * (0.3 + bite * 0.15));
+    ctx.lineTo(cx + headR * 0.11, headCy + headR * (0.42 + bite * 0.2));
+    ctx.lineTo(cx + headR * 0.17, headCy + headR * (0.3 + bite * 0.15));
+    ctx.closePath();
+    ctx.fill();
 
-    // arms: short filled "sleeve" segments ending in fists, reaching forward —
-    // swing further in and out while attacking to read as an actual bite/grab
-    ctx.fillStyle = '#cfd8dc';
+    // arms: woven-vine "sleeves" ending in small leaf-cluster fists — swing
+    // further in and out while attacking to read as an actual bite/grab
     const armY = this.y + this.height * 0.4;
     const armSwing = bite * 0.35;
     const armReach = 18 + bite * 6;
 
+    ctx.fillStyle = '#5c6b2f';
     ctx.save();
     ctx.translate(this.x, armY);
     ctx.rotate(-0.15 - armSwing);
     ctx.fillRect(-armReach, -5, armReach, 10);
     ctx.restore();
-    ctx.fillStyle = '#5d6b2f';
-    ctx.beginPath();
-    ctx.arc(this.x - armReach + 2, armY - 3, 6, 0, Math.PI * 2);
-    ctx.fill();
+    renderLeafFist(ctx, this.x - armReach + 2, armY - 3);
 
-    ctx.fillStyle = '#cfd8dc';
+    ctx.fillStyle = '#5c6b2f';
     ctx.save();
     ctx.translate(this.x + this.width, armY);
     ctx.rotate(0.15 + armSwing);
     ctx.fillRect(0, -5, armReach, 10);
     ctx.restore();
-    ctx.fillStyle = '#5d6b2f';
-    ctx.beginPath();
-    ctx.arc(this.x + this.width + armReach - 2, armY - 3, 6, 0, Math.PI * 2);
-    ctx.fill();
+    renderLeafFist(ctx, this.x + this.width + armReach - 2, armY - 3);
 
     ctx.restore();
   }
 }
 
-export class BasicZombie extends Zombie {
-  private static readonly HP = GAME_CONFIG.zombies.basic.hp;
-  private static readonly SPEED = GAME_CONFIG.zombies.basic.speed;
-  private static readonly ATTACK_POWER = GAME_CONFIG.zombies.basic.attackPower;
+function renderLeafFist(ctx: CanvasRenderingContext2D, cx: number, cy: number): void {
+  ctx.fillStyle = '#4b5320';
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.ellipse(cx + Math.cos(angle) * 3, cy + Math.sin(angle) * 3, 4.5, 3, angle, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+export class Husk extends Zombie {
+  private static readonly HP = GAME_CONFIG.zombies.husk.hp;
+  private static readonly SPEED = GAME_CONFIG.zombies.husk.speed;
+  private static readonly ATTACK_POWER = GAME_CONFIG.zombies.husk.attackPower;
   private static readonly WIDTH = 50;
   private static readonly HEIGHT = 70;
 
   constructor(x: number, y: number, row: number) {
-    super(
-      x,
-      y,
-      BasicZombie.WIDTH,
-      BasicZombie.HEIGHT,
-      BasicZombie.HP,
-      BasicZombie.SPEED,
-      BasicZombie.ATTACK_POWER,
-      row,
-    );
+    super(x, y, Husk.WIDTH, Husk.HEIGHT, Husk.HP, Husk.SPEED, Husk.ATTACK_POWER, row);
   }
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -291,7 +311,7 @@ export class BasicZombie extends Zombie {
   }
 }
 
-/** Shared base for zombies that wear a headpiece which absorbs damage before health. */
+/** Shared base for Husks that carry natural headgear absorbing damage before health. */
 export abstract class ArmoredZombie extends Zombie {
   armorHp: number;
 
@@ -324,25 +344,25 @@ export abstract class ArmoredZombie extends Zombie {
   }
 }
 
-export class ConeheadZombie extends ArmoredZombie {
-  private static readonly HP = GAME_CONFIG.zombies.conehead.hp;
-  private static readonly SPEED = GAME_CONFIG.zombies.conehead.speed;
-  private static readonly ATTACK_POWER = GAME_CONFIG.zombies.conehead.attackPower;
+export class PodHeadHusk extends ArmoredZombie {
+  private static readonly HP = GAME_CONFIG.zombies.podhead.hp;
+  private static readonly SPEED = GAME_CONFIG.zombies.podhead.speed;
+  private static readonly ATTACK_POWER = GAME_CONFIG.zombies.podhead.attackPower;
   private static readonly WIDTH = 50;
   private static readonly HEIGHT = 70;
-  private static readonly ARMOR_HP = GAME_CONFIG.zombies.conehead.armorHp;
+  private static readonly ARMOR_HP = GAME_CONFIG.zombies.podhead.armorHp;
 
   constructor(x: number, y: number, row: number) {
     super(
       x,
       y,
-      ConeheadZombie.WIDTH,
-      ConeheadZombie.HEIGHT,
-      ConeheadZombie.HP,
-      ConeheadZombie.SPEED,
-      ConeheadZombie.ATTACK_POWER,
+      PodHeadHusk.WIDTH,
+      PodHeadHusk.HEIGHT,
+      PodHeadHusk.HP,
+      PodHeadHusk.SPEED,
+      PodHeadHusk.ATTACK_POWER,
       row,
-      ConeheadZombie.ARMOR_HP,
+      PodHeadHusk.ARMOR_HP,
     );
   }
 
@@ -355,34 +375,37 @@ export class ConeheadZombie extends ArmoredZombie {
       ctx.save();
       const headCx = this.x + this.width / 2;
       const headTopY = this.y + this.height * 0.15 - this.width * 0.35;
-      const coneTipY = headTopY - 18;
-      const coneBaseY = headTopY + 2;
+      const podTop = headTopY - 20;
+      const podBottom = headTopY + 4;
 
-      const coneGradient = ctx.createLinearGradient(headCx - 16, coneTipY, headCx + 16, coneBaseY);
-      coneGradient.addColorStop(0, '#ffb74d');
-      coneGradient.addColorStop(0.5, '#fb8c00');
-      coneGradient.addColorStop(1, '#e65100');
-      ctx.fillStyle = coneGradient;
+      const podGradient = ctx.createLinearGradient(headCx - 15, podTop, headCx + 15, podBottom);
+      podGradient.addColorStop(0, '#a1887f');
+      podGradient.addColorStop(0.5, '#795548');
+      podGradient.addColorStop(1, '#4e342e');
+      ctx.fillStyle = podGradient;
       ctx.beginPath();
-      ctx.moveTo(headCx, coneTipY);
-      ctx.lineTo(headCx - 16, coneBaseY);
-      ctx.lineTo(headCx + 16, coneBaseY);
-      ctx.closePath();
+      ctx.ellipse(headCx, (podTop + podBottom) / 2, 15, (podBottom - podTop) / 2 + 2, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#e65100';
+      ctx.strokeStyle = '#3e2723';
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // reflective stripes
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.lineWidth = 2;
-      const stripe1 = 0.45;
-      const stripe2 = 0.72;
+      // seam lines across the seed pod
+      ctx.strokeStyle = 'rgba(62, 39, 35, 0.6)';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(headCx - 16 * stripe1, coneTipY + (coneBaseY - coneTipY) * stripe1);
-      ctx.lineTo(headCx + 16 * stripe1, coneTipY + (coneBaseY - coneTipY) * stripe1);
-      ctx.moveTo(headCx - 16 * stripe2, coneTipY + (coneBaseY - coneTipY) * stripe2);
-      ctx.lineTo(headCx + 16 * stripe2, coneTipY + (coneBaseY - coneTipY) * stripe2);
+      ctx.moveTo(headCx - 12, podTop + 6);
+      ctx.lineTo(headCx + 12, podTop + 6);
+      ctx.moveTo(headCx - 13, podTop + 14);
+      ctx.lineTo(headCx + 13, podTop + 14);
+      ctx.stroke();
+
+      // dried stem nub on top
+      ctx.strokeStyle = '#4e342e';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(headCx, podTop - 1);
+      ctx.lineTo(headCx + 3, podTop - 8);
       ctx.stroke();
 
       ctx.restore();
@@ -390,25 +413,25 @@ export class ConeheadZombie extends ArmoredZombie {
   }
 }
 
-export class BucketheadZombie extends ArmoredZombie {
-  private static readonly HP = GAME_CONFIG.zombies.buckethead.hp;
-  private static readonly SPEED = GAME_CONFIG.zombies.buckethead.speed;
-  private static readonly ATTACK_POWER = GAME_CONFIG.zombies.buckethead.attackPower;
+export class StumpHusk extends ArmoredZombie {
+  private static readonly HP = GAME_CONFIG.zombies.stumphusk.hp;
+  private static readonly SPEED = GAME_CONFIG.zombies.stumphusk.speed;
+  private static readonly ATTACK_POWER = GAME_CONFIG.zombies.stumphusk.attackPower;
   private static readonly WIDTH = 50;
   private static readonly HEIGHT = 70;
-  private static readonly ARMOR_HP = GAME_CONFIG.zombies.buckethead.armorHp;
+  private static readonly ARMOR_HP = GAME_CONFIG.zombies.stumphusk.armorHp;
 
   constructor(x: number, y: number, row: number) {
     super(
       x,
       y,
-      BucketheadZombie.WIDTH,
-      BucketheadZombie.HEIGHT,
-      BucketheadZombie.HP,
-      BucketheadZombie.SPEED,
-      BucketheadZombie.ATTACK_POWER,
+      StumpHusk.WIDTH,
+      StumpHusk.HEIGHT,
+      StumpHusk.HP,
+      StumpHusk.SPEED,
+      StumpHusk.ATTACK_POWER,
       row,
-      BucketheadZombie.ARMOR_HP,
+      StumpHusk.ARMOR_HP,
     );
   }
 
@@ -421,34 +444,38 @@ export class BucketheadZombie extends ArmoredZombie {
       ctx.save();
       const headCx = this.x + this.width / 2;
       const headTopY = this.y + this.height * 0.15 - this.width * 0.35;
-      const bucketTop = headTopY - 20;
-      const bucketBottom = headTopY + 4;
-      const bucketHalfWidth = 17;
+      const stumpTop = headTopY - 20;
+      const stumpBottom = headTopY + 4;
+      const stumpHalfWidth = 17;
 
-      const bucketGradient = ctx.createLinearGradient(headCx - bucketHalfWidth, bucketTop, headCx + bucketHalfWidth, bucketBottom);
-      bucketGradient.addColorStop(0, '#cfd8dc');
-      bucketGradient.addColorStop(0.5, '#90a4ae');
-      bucketGradient.addColorStop(1, '#546e7a');
-      ctx.fillStyle = bucketGradient;
+      const stumpGradient = ctx.createLinearGradient(headCx - stumpHalfWidth, stumpTop, headCx + stumpHalfWidth, stumpBottom);
+      stumpGradient.addColorStop(0, '#a1887f');
+      stumpGradient.addColorStop(0.5, '#795548');
+      stumpGradient.addColorStop(1, '#4e342e');
+      ctx.fillStyle = stumpGradient;
       ctx.beginPath();
-      ctx.moveTo(headCx - bucketHalfWidth * 0.85, bucketTop);
-      ctx.lineTo(headCx + bucketHalfWidth * 0.85, bucketTop);
-      ctx.lineTo(headCx + bucketHalfWidth, bucketBottom);
-      ctx.lineTo(headCx - bucketHalfWidth, bucketBottom);
+      ctx.moveTo(headCx - stumpHalfWidth * 0.85, stumpTop);
+      ctx.lineTo(headCx + stumpHalfWidth * 0.85, stumpTop);
+      ctx.lineTo(headCx + stumpHalfWidth, stumpBottom);
+      ctx.lineTo(headCx - stumpHalfWidth, stumpBottom);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = '#37474f';
+      ctx.strokeStyle = '#3e2723';
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // rim + reflective band
-      ctx.fillStyle = '#78909c';
-      ctx.fillRect(headCx - bucketHalfWidth * 0.95, bucketTop - 3, bucketHalfWidth * 1.9, 5);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-      ctx.lineWidth = 2;
+      // wood-ring top + bark texture lines
+      ctx.strokeStyle = 'rgba(62, 39, 35, 0.6)';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(headCx - bucketHalfWidth * 0.6, bucketTop + 6);
-      ctx.lineTo(headCx - bucketHalfWidth * 0.6, bucketBottom - 4);
+      ctx.ellipse(headCx, stumpTop, stumpHalfWidth * 0.95, 5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(headCx, stumpTop, stumpHalfWidth * 0.6, 3, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(headCx - stumpHalfWidth * 0.6, stumpTop + 6);
+      ctx.lineTo(headCx - stumpHalfWidth * 0.6, stumpBottom - 4);
       ctx.stroke();
 
       ctx.restore();
@@ -457,9 +484,9 @@ export class BucketheadZombie extends ArmoredZombie {
 }
 
 const ZOMBIE_FACTORIES: Record<ZombieType, (x: number, y: number, row: number) => Zombie> = {
-  basic: (x, y, row) => new BasicZombie(x, y, row),
-  conehead: (x, y, row) => new ConeheadZombie(x, y, row),
-  buckethead: (x, y, row) => new BucketheadZombie(x, y, row),
+  husk: (x, y, row) => new Husk(x, y, row),
+  podhead: (x, y, row) => new PodHeadHusk(x, y, row),
+  stumphusk: (x, y, row) => new StumpHusk(x, y, row),
 };
 
 export function createZombie(type: ZombieType, x: number, y: number, row: number): Zombie {

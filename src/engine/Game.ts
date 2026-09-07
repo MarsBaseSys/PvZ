@@ -3,31 +3,31 @@ import { Grid, type GridCell } from './Grid';
 import { InputManager } from './InputManager';
 import { EventBus } from '../utils/EventBus';
 import {
-  CherryBomb,
-  HypnoShroom,
-  IceMushroom,
+  BarkBulwark,
+  Blastcap,
+  Dreamspore,
+  Emberroot,
+  FrostLily,
+  GlacierBloom,
+  Moonbud,
   PLANT_COSTS,
-  Peashooter,
   Plant,
-  Repeater,
-  SnowPea,
-  Sunflower,
-  TorchWood,
-  WallNut,
+  Thornsnap,
+  TwinFang,
   type PlantType,
 } from '../objects/Plant';
 import { CELL_SIZE } from '../utils/constants';
 
 const PLANT_FACTORIES: Record<PlantType, (x: number, y: number, row: number) => Plant> = {
-  sunflower: (x, y, row) => new Sunflower(x, y, row),
-  peashooter: (x, y, row) => new Peashooter(x, y, row),
-  wallnut: (x, y, row) => new WallNut(x, y, row),
-  snowpea: (x, y, row) => new SnowPea(x, y, row),
-  repeater: (x, y, row) => new Repeater(x, y, row),
-  cherrybomb: (x, y, row) => new CherryBomb(x, y, row),
-  torchwood: (x, y, row) => new TorchWood(x, y, row),
-  hypnoshroom: (x, y, row) => new HypnoShroom(x, y, row),
-  iceshroom: (x, y, row) => new IceMushroom(x, y, row),
+  moonbud: (x, y, row) => new Moonbud(x, y, row),
+  thornsnap: (x, y, row) => new Thornsnap(x, y, row),
+  barkbulwark: (x, y, row) => new BarkBulwark(x, y, row),
+  frostlily: (x, y, row) => new FrostLily(x, y, row),
+  twinfang: (x, y, row) => new TwinFang(x, y, row),
+  blastcap: (x, y, row) => new Blastcap(x, y, row),
+  emberroot: (x, y, row) => new Emberroot(x, y, row),
+  dreamspore: (x, y, row) => new Dreamspore(x, y, row),
+  glacierbloom: (x, y, row) => new GlacierBloom(x, y, row),
 };
 
 export class Game extends GameEngine {

@@ -4,45 +4,45 @@ export const GAME_CONFIG = {
     sunValue: 25,
   },
   plants: {
-    sunflower: {
+    moonbud: {
       cost: 50,
       cooldown: 7.5,
       hp: 300,
       sunInterval: 14,
     },
-    peashooter: {
+    thornsnap: {
       cost: 100,
       cooldown: 7.5,
       hp: 300,
       damage: 20,
       attackInterval: 1.4,
-      peaSpeed: 300,
+      seedSpeed: 300,
     },
-    wallnut: {
+    barkbulwark: {
       cost: 50,
       cooldown: 30,
       hp: 4000,
     },
-    snowpea: {
+    frostlily: {
       cost: 175,
       cooldown: 7.5,
       hp: 300,
       damage: 20,
       attackInterval: 1.4,
-      peaSpeed: 300,
+      seedSpeed: 300,
       slowFactor: 0.5,
       slowDuration: 1.5,
     },
-    repeater: {
+    twinfang: {
       cost: 200,
       cooldown: 7.5,
       hp: 300,
       damage: 20,
       attackInterval: 1.4,
-      peaSpeed: 300,
+      seedSpeed: 300,
       secondShotDelay: 0.15,
     },
-    cherrybomb: {
+    blastcap: {
       cost: 150,
       cooldown: 45,
       hp: 300,
@@ -50,40 +50,40 @@ export const GAME_CONFIG = {
       radiusCells: 1,
       fuseDuration: 0.4,
     },
-    torchwood: {
+    emberroot: {
       cost: 25,
       cooldown: 7.5,
       hp: 500,
     },
-    hypnoshroom: {
+    dreamspore: {
       cost: 75,
       cooldown: 7.5,
       hp: 400,
     },
-    iceshroom: {
+    glacierbloom: {
       cost: 100,
       cooldown: 7.5,
       hp: 3000,
       damage: 35,
       attackInterval: 1.4,
-      peaSpeed: 300,
+      seedSpeed: 300,
       slowFactor: 0.5,
       slowDuration: 1.5,
     },
   },
   zombies: {
-    basic: {
+    husk: {
       hp: 200,
       speed: 15,
       attackPower: 100,
     },
-    conehead: {
+    podhead: {
       hp: 200,
       armorHp: 370,
       speed: 15,
       attackPower: 100,
     },
-    buckethead: {
+    stumphusk: {
       hp: 200,
       armorHp: 1100,
       speed: 15,
